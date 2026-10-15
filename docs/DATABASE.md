@@ -18,7 +18,7 @@ Foreign keys cascade on delete, so deleting a column removes its cards, and so o
 ## Lifecycle
 
 - On startup the backend creates the tables if they do not exist (`CREATE TABLE IF NOT EXISTS`), which also creates the DB file and its directory.
-- It then ensures the `user` row exists, and that the user has a board. A new board is seeded with the five default columns (Backlog, Discovery, In Progress, Review, Done) and the demo cards currently in `frontend/src/lib/kanban.ts`.
+- The first authenticated request for a user creates the user row and their board if missing (`ensure_board`). A new board is seeded with the five default columns (Backlog, Discovery, In Progress, Review, Done) and the demo cards currently in `frontend/src/lib/kanban.ts`.
 - No migrations for the MVP. If the schema changes, delete the volume.
 
 ## API shape

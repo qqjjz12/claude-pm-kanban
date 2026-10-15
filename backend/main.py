@@ -1,12 +1,29 @@
+from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 
+import db
 from auth import router as auth_router
+from board import router as board_router
 
-app = FastAPI()
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    db.init_db()
+    yield
+
+
+app = FastAPI(lifespan=lifespan)
 app.include_router(auth_router)
+app.include_router(board_router)
+
+
+@app.exception_handler(LookupError)
+def not_found(request: Request, exc: LookupError):
+    return JSONResponse({"detail": "Not found"}, status_code=404)
 
 
 @app.get("/api/hello")

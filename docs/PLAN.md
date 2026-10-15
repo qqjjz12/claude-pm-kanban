@@ -91,15 +91,15 @@ Success: user approves the schema and document.
 ## Part 6: Backend API
 
 Substeps:
-- [ ] `backend/db.py`: connect, create tables if missing, seed default user and default board (5 columns, demo cards) on first login or startup
-- [ ] Routes (all require the auth cookie, scoped to the current user):
+- [x] `backend/db.py`: connect, create tables if missing, seed default user and default board (5 columns, demo cards) on first login or startup
+- [x] Routes (all require the auth cookie, scoped to the current user):
   - `GET /api/board` returns the full board in the frontend `BoardData` shape
   - `PUT /api/columns/{id}` rename
   - `POST /api/cards` create (column, title, details)
   - `PUT /api/cards/{id}` edit title/details
   - `DELETE /api/cards/{id}`
   - `POST /api/cards/{id}/move` (target column, position)
-- [ ] 404 for ids not owned by the user
+- [x] 404 for ids not owned by the user
 
 Tests (pytest, temp DB per test):
 - DB created when file does not exist; tables present; seed idempotent

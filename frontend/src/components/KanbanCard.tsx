@@ -84,7 +84,7 @@ export const KanbanCard = ({ card, onDelete, onEdit }: KanbanCardProps) => {
         </div>
       ) : (
         <div className="flex items-start justify-between gap-3">
-          <div>
+          <div className="min-w-0 [overflow-wrap:anywhere]">
             <h4 className="font-display text-base font-semibold text-[var(--navy-dark)]">
               {card.title}
             </h4>

@@ -107,3 +107,17 @@ test("a moved card stays in its new column after reload", async ({ page }) => {
   await expect(column(page, 3).getByText(title)).toBeVisible();
   await removeCard(page, title);
 });
+
+test("long unbroken text stays inside the card", async ({ page }) => {
+  const title = uniqueTitle("Long");
+  const col = column(page, 0);
+  await col.getByRole("button", { name: /add a card/i }).click();
+  await col.getByPlaceholder("Card title").fill(title);
+  await col.getByPlaceholder("Details").fill("r".repeat(200));
+  await col.getByRole("button", { name: /add card/i }).click();
+
+  const box = (await card(page, title).boundingBox())!;
+  const details = (await card(page, title).locator("p").boundingBox())!;
+  expect(details.x + details.width).toBeLessThanOrEqual(box.x + box.width);
+  await removeCard(page, title);
+});

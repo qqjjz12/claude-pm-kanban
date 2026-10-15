@@ -138,10 +138,10 @@ Success: real call to OpenRouter returns a correct answer.
 ## Part 9: AI with Kanban context and Structured Outputs
 
 Substeps:
-- [ ] `POST /api/chat` body: `{message, history[]}`; backend loads the user's board JSON and sends system prompt + board JSON + history + question
-- [ ] Structured Output schema: `{reply: string, board_update: null | {operations[]}}` where operations are create card, edit card, move card, delete card, rename column (so one or more cards can be changed); validate with pydantic
-- [ ] Backend applies the operations through the same DB functions as Part 6, and returns `{reply, board}` with the fresh board when changed
-- [ ] Reject or ignore operations referencing unknown ids, reporting that in the reply
+- [x] `POST /api/chat` body: `{message, history[]}`; backend loads the user's board JSON and sends system prompt + board JSON + history + question
+- [x] Structured Output schema: `{reply: string, operations: Operation[]}` (empty list means no board change) where operations are create card, edit card, move card, delete card, rename column (so one or more cards can be changed); validate with pydantic
+- [x] Backend applies the operations through the same DB functions as Part 6, and returns `{reply, board}` with the fresh board when changed
+- [x] Reject or ignore operations referencing unknown ids, reporting that in the reply
 
 Tests:
 - pytest with mocked model output: reply only; each operation type applied and persisted; multiple operations in one response; invalid ids handled; malformed model output returns a clear error

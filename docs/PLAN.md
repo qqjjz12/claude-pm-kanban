@@ -34,12 +34,12 @@ Success: user approves.
 ## Part 2: Scaffolding
 
 Substeps:
-- [ ] `backend/pyproject.toml` (fastapi, uvicorn, pytest, httpx) managed by uv
-- [ ] `backend/main.py`: FastAPI app with `GET /api/hello` returning JSON, and a static mount serving `backend/static/` with a hello world `index.html`
-- [ ] `Dockerfile` (python base, install uv, `uv sync`, run uvicorn on port 8000)
-- [ ] `scripts/start.sh`, `scripts/stop.sh` (Mac/Linux), `scripts/start.ps1`, `scripts/stop.ps1` (PC): build image, run container with `--env-file .env`, volume for `/data`
-- [ ] Update `backend/AGENTS.md` and `scripts/AGENTS.md`
-- [ ] Minimal root `README.md` with how to start/stop
+- [x] `backend/pyproject.toml` (fastapi, uvicorn, pytest, httpx) managed by uv
+- [x] `backend/main.py`: FastAPI app with `GET /api/hello` returning JSON, and a static mount serving `backend/static/` with a hello world `index.html`
+- [x] `Dockerfile` (python base, install uv, `uv sync`, run uvicorn on port 8000)
+- [x] `scripts/start.sh`, `scripts/stop.sh` (Mac/Linux), `scripts/start.ps1`, `scripts/stop.ps1` (PC): build image, run container with `--env-file .env`, volume for `/data`
+- [x] Update `backend/AGENTS.md` and `scripts/AGENTS.md`
+- [x] Minimal root `README.md` with how to start/stop
 
 Tests:
 - pytest: `GET /api/hello` returns 200 and expected JSON; `GET /` returns the hello HTML

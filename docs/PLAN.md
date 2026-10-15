@@ -27,14 +27,14 @@
 - [x] Review AGENTS.md and the existing frontend
 - [x] Write `frontend/AGENTS.md` describing the existing code
 - [x] Enrich this document with substeps, tests, success criteria
-- [ ] User reviews and approves the plan
+- [x] User reviews and approves the plan
 
 Success: user approves.
 
 ## Part 2: Scaffolding
 
 Substeps:
-- [x] `backend/pyproject.toml` (fastapi, uvicorn, pytest, httpx) managed by uv
+- [x] `backend/pyproject.toml` (fastapi, uvicorn, pytest, httpx2) managed by uv
 - [x] `backend/main.py`: FastAPI app with `GET /api/hello` returning JSON, and a static mount serving `backend/static/` with a hello world `index.html`
 - [x] `Dockerfile` (python base, install uv, `uv sync`, run uvicorn on port 8000)
 - [x] `scripts/start.sh`, `scripts/stop.sh` (Mac/Linux), `scripts/start.ps1`, `scripts/stop.ps1` (PC): build image, run container with `--env-file .env`, volume for `/data`
@@ -126,7 +126,7 @@ Success: board is fully persistent; all unit and e2e tests pass.
 
 Substeps:
 - [x] `backend/ai.py`: OpenRouter client (OpenAI SDK with base URL `https://openrouter.ai/api/v1`), model `openai/gpt-oss-120b`, key from `OPENROUTER_API_KEY`
-- [x] Temporary `POST /api/ai/test` route (auth required) that asks "What is 2+2?" and returns the reply
+- [x] Temporary `POST /api/ai/test` route (auth required) that asks "What is 2+2?" and returns the reply (removed in Part 9; `/api/chat` replaces it)
 
 Tests:
 - pytest with mocked client: request built with right model and key

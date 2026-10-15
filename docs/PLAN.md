@@ -125,8 +125,8 @@ Success: board is fully persistent; all unit and e2e tests pass.
 ## Part 8: AI connectivity
 
 Substeps:
-- [ ] `backend/ai.py`: OpenRouter client (OpenAI SDK with base URL `https://openrouter.ai/api/v1`), model `openai/gpt-oss-120b`, key from `OPENROUTER_API_KEY`
-- [ ] Temporary `POST /api/ai/test` route (auth required) that asks "What is 2+2?" and returns the reply
+- [x] `backend/ai.py`: OpenRouter client (OpenAI SDK with base URL `https://openrouter.ai/api/v1`), model `openai/gpt-oss-120b`, key from `OPENROUTER_API_KEY`
+- [x] Temporary `POST /api/ai/test` route (auth required) that asks "What is 2+2?" and returns the reply
 
 Tests:
 - pytest with mocked client: request built with right model and key

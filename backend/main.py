@@ -6,6 +6,7 @@ from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 import db
+from ai import router as ai_router
 from auth import router as auth_router
 from board import router as board_router
 
@@ -19,6 +20,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(lifespan=lifespan)
 app.include_router(auth_router)
 app.include_router(board_router)
+app.include_router(ai_router)
 
 
 @app.exception_handler(LookupError)

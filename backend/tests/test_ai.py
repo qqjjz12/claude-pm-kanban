@@ -261,3 +261,19 @@ def test_live_add_card(client):
     titles = [data["board"]["cards"][c]["title"] for c in data["board"]["columns"][3]["cardIds"]]
     assert any("Live test card" in t for t in titles)
     assert len(titles) == len(review["cardIds"]) + 1
+
+
+def test_invalid_output_is_retried_once(client, monkeypatch):
+    calls = []
+    good = AIResponse(reply="second try", operations=[])
+
+    def parse(**kwargs):
+        calls.append(1)
+        if len(calls) == 1:
+            AIResponse.model_validate({"reply": 1})
+        return SimpleNamespace(choices=[SimpleNamespace(message=SimpleNamespace(parsed=good))])
+
+    completions = SimpleNamespace(parse=parse)
+    monkeypatch.setattr(ai, "get_client", lambda: SimpleNamespace(chat=SimpleNamespace(completions=completions)))
+    assert chat(client).json()["reply"] == "second try"
+    assert len(calls) == 2

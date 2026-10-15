@@ -35,3 +35,11 @@ export const moveCard = (cardId: string, columnId: string, position: number) =>
     column_id: columnId,
     position,
   });
+
+export type ChatMessage = { role: "user" | "assistant"; content: string };
+
+export const chat = (
+  message: string,
+  history: ChatMessage[]
+): Promise<{ reply: string; board: BoardData | null }> =>
+  request("POST", "/api/chat", { message, history });

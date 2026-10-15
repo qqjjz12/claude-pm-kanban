@@ -27,7 +27,8 @@ Operation types and the fields they need (set every unused field to null):
 - delete_card: card_id
 - rename_column: column_id, title
 
-Use only the ids that appear in the board JSON below. Cards are listed in each
+Use only the ids that appear in the board JSON below. A card you create has no id yet,
+so later operations cannot refer to it: create it directly in its final column. Cards are listed in each
 column's cardIds in display order.
 
 Current board:
@@ -71,9 +72,16 @@ def ask_ai(board: dict, history: list[Message], message: str) -> AIResponse:
     messages = [{"role": "system", "content": SYSTEM_PROMPT + json.dumps(board)}]
     messages += [m.model_dump() for m in history]
     messages.append({"role": "user", "content": message})
-    completion = get_client().chat.completions.parse(
-        model=MODEL, messages=messages, response_format=AIResponse
-    )
+    # The model occasionally answers in plain text instead of the schema; try once more.
+    for attempt in range(2):
+        try:
+            completion = get_client().chat.completions.parse(
+                model=MODEL, messages=messages, response_format=AIResponse
+            )
+            break
+        except ValidationError:
+            if attempt:
+                raise
     parsed = completion.choices[0].message.parsed
     if parsed is None:
         raise ValueError("The AI returned no structured response")

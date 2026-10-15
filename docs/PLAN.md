@@ -152,11 +152,11 @@ Success: AI answers questions about the board and can modify it via structured o
 ## Part 10: Chat sidebar UI
 
 Substeps:
-- [ ] Sidebar component with message list, input, send button, loading indicator; history in React state
-- [ ] Sends `{message, history}` to `/api/chat`; renders the reply
-- [ ] When the response includes an updated board, the board state refreshes automatically
-- [ ] Styled with the color scheme (purple submit button, navy headings, yellow accents)
-- [ ] Layout: board plus collapsible right-hand sidebar, responsive
+- [x] Sidebar component with message list, input, send button, loading indicator; history in React state
+- [x] Sends `{message, history}` to `/api/chat`; renders the reply
+- [x] When the response includes an updated board, the board state refreshes automatically
+- [x] Styled with the color scheme (purple submit button, navy headings, yellow accents)
+- [x] Layout: board plus collapsible right-hand sidebar, responsive
 
 Tests:
 - Vitest: sidebar renders messages, sends, shows loading and error; board refresh on update response

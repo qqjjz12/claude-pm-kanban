@@ -8,7 +8,8 @@ Next.js 16 (App Router, static export), React 19, TypeScript, Tailwind 4. Board 
 - `src/app/layout.tsx`, `globals.css` - layout, fonts, CSS variables for the color scheme
 - `src/components/AuthGate.tsx` - checks `/api/me`, shows `LoginForm` or the board; handles login/logout
 - `src/components/LoginForm.tsx` - username/password form with error message
-- `src/components/KanbanBoard.tsx` - client component; loads the board, owns `BoardData` state, dnd-kit `DndContext`, `onLogout` prop (Log out button). Changes apply optimistically then persist via the API; on failure it reloads the board and shows an error. Column renames save on blur; new cards wait for the server id
+- `src/components/ChatSidebar.tsx` - collapsible right-hand AI chat; messages and loading/error state in React state; sends `{message, history}` via `api.chat` and calls `onBoardUpdate(board)` when the reply includes a board
+- `src/components/KanbanBoard.tsx` - client component; renders `ChatSidebar` beside the board and passes `setBoard` to it; loads the board, owns `BoardData` state, dnd-kit `DndContext`, `onLogout` prop (Log out button). Changes apply optimistically then persist via the API; on failure it reloads the board and shows an error. Column renames save on blur; new cards wait for the server id
 - `src/components/KanbanColumn.tsx` - one column; editable title, card list, new card form
 - `src/components/KanbanCard.tsx` - sortable card with inline edit and delete
 - `src/components/KanbanCardPreview.tsx` - card rendering used in the drag overlay

@@ -66,10 +66,10 @@ Success: `/` shows the Kanban demo from the container; all unit and e2e tests pa
 ## Part 4: Fake sign in
 
 Substeps:
-- [ ] Backend: `POST /api/login` (checks `user` / `password`, sets signed cookie), `POST /api/logout`, `GET /api/me` (200 with username or 401)
-- [ ] Signing secret: derived from a fixed dev default, overridable by env var
-- [ ] Frontend: on load call `/api/me`; if 401 show a login form (styled with the color scheme); on success show the board; add a Log out button in the header
-- [ ] Error message on bad credentials
+- [x] Backend: `POST /api/login` (checks `user` / `password`, sets signed cookie), `POST /api/logout`, `GET /api/me` (200 with username or 401)
+- [x] Signing secret: derived from a fixed dev default, overridable by env var
+- [x] Frontend: on load call `/api/me`; if 401 show a login form (styled with the color scheme); on success show the board; add a Log out button in the header
+- [x] Error message on bad credentials
 
 Tests:
 - pytest: login success sets cookie; wrong password returns 401; `/api/me` without cookie 401, with cookie 200; logout clears; tampered cookie rejected

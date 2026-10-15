@@ -1,0 +1,219 @@
+# Tests
+
+## How to run
+
+| Suite | Command | Notes |
+| --- | --- | --- |
+| Backend (pytest) | `cd backend && uv run pytest` | Temp database per test. Live AI tests are skipped without the key; run them with `uv run --env-file ../.env pytest` |
+| Frontend unit (Vitest) | `cd frontend && npm run test:unit` | jsdom; the API module or `fetch` is mocked |
+| End to end (Playwright) | `cd frontend && npm run test:e2e` | Needs the container running (`scripts/start`), at http://localhost:8000 |
+
+Counts: backend 48 passing plus 2 live tests skipped without the key, frontend unit 35, end to end 14.
+
+## Backend (pytest) - `backend/tests/`
+
+### test_main.py
+
+| Test | What it checks |
+| --- | --- |
+| test_hello | `GET /api/hello` returns 200 and the expected JSON message |
+
+### test_auth.py
+
+| Test | What it checks |
+| --- | --- |
+| test_login_success_sets_cookie | Logging in as `user` / `password` returns 200 and sets the session cookie |
+| test_login_wrong_password | A wrong password returns 401 |
+| test_login_wrong_username | An unknown username returns 401 |
+| test_me_without_cookie | `GET /api/me` without a cookie returns 401 |
+| test_me_with_cookie | `GET /api/me` with a valid cookie returns 200 and the username |
+| test_logout_clears_session | Logging out clears the cookie, so `/api/me` returns 401 again |
+| test_tampered_cookie_rejected | A cookie with a made-up signature is rejected |
+| test_cookie_for_other_user_without_valid_signature_rejected | Reusing a valid signature with a different username is rejected |
+
+### test_board.py
+
+Database and seeding:
+
+| Test | What it checks |
+| --- | --- |
+| test_db_created_when_missing | The database file and tables are created when the file does not exist |
+| test_seeded_board | The first board request returns the seeded board of 5 columns |
+| test_seed_is_idempotent | Repeated requests do not seed twice (one board, five columns in the database) |
+| test_restart_keeps_data | Data saved before an app restart is still there with a fresh app instance |
+
+Authentication:
+
+| Test | What it checks |
+| --- | --- |
+| test_routes_require_auth | Every board route returns 401 without a cookie |
+
+Columns and cards:
+
+| Test | What it checks |
+| --- | --- |
+| test_rename_column | Renaming a column is saved and returned |
+| test_rename_unknown_column | Renaming an unknown column returns 404 |
+| test_create_card | Creating a card returns 201 and persists it at the end of the column |
+| test_create_card_default_details | A card created without details gets an empty string |
+| test_create_card_unknown_column | Creating a card in an unknown column returns 404 |
+| test_update_card | Editing title and details is saved |
+| test_update_unknown_card | Editing an unknown card returns 404 |
+| test_delete_card | Deleting removes the card and keeps positions contiguous |
+| test_delete_unknown_card | Deleting an unknown card returns 404 |
+| test_move_within_column | Moving inside a column reorders it with contiguous positions |
+| test_move_to_other_column | Moving to another column updates both columns, persisted |
+| test_move_clamps_position | A position beyond the end is clamped to the end of the column |
+| test_move_unknown_ids | An unknown card or column in a move returns 404 |
+
+User isolation:
+
+| Test | What it checks |
+| --- | --- |
+| test_users_have_separate_boards | Two users get different boards with no shared ids |
+| test_cannot_modify_other_users_board | A second user gets 404 on every attempt to read or change the first user's columns and cards |
+
+### test_ai.py
+
+The model is mocked, so these run without the network.
+
+Request sent to the model:
+
+| Test | What it checks |
+| --- | --- |
+| test_request_has_board_history_and_question | The model call uses `openai/gpt-oss-120b` and the structured output schema, with the board JSON in the system prompt, then the history, then the new question |
+| test_board_in_prompt_is_current | A rename made just before the chat shows up in the prompt's board |
+
+Applying operations:
+
+| Test | What it checks |
+| --- | --- |
+| test_reply_only_leaves_board_unchanged | No operations returns the reply with `board: null` and no change |
+| test_create_card | A create operation adds the card; the response board matches the database |
+| test_edit_card | An edit operation updates title and details |
+| test_move_card | A move operation puts the card at the given column and position |
+| test_move_card_without_position_goes_to_end | A move without a position places the card at the end |
+| test_delete_card | A delete operation removes the card |
+| test_rename_column | A rename operation changes the column title |
+| test_multiple_operations_in_one_response | Several operations of different types in one reply are all applied |
+
+Invalid operations:
+
+| Test | What it checks |
+| --- | --- |
+| test_unknown_ids_are_skipped_and_reported | Operations with unknown ids are skipped, valid ones still apply, and the reply says what could not be applied |
+| test_missing_fields_are_skipped | An operation missing a required field is skipped and reported, and nothing changes |
+| test_other_users_ids_are_rejected | Ids from another user's board cannot be changed through the AI |
+
+Failures and validation:
+
+| Test | What it checks |
+| --- | --- |
+| test_malformed_model_output_returns_502 | Output that fails schema validation returns 502 with a clear message |
+| test_empty_parsed_response_returns_502 | A response with no structured output returns 502 |
+| test_provider_error_returns_502 | A provider error (OpenAI SDK exception) returns 502 |
+| test_invalid_output_is_retried_once | Invalid output on the first try is retried once and the second answer is used |
+| test_chat_requires_auth | `/api/chat` returns 401 without a cookie |
+| test_invalid_history_role_rejected | A history message with a role other than user or assistant returns 422 |
+
+Live (skipped when `OPENROUTER_API_KEY` is not set):
+
+| Test | What it checks |
+| --- | --- |
+| test_live_question_changes_nothing | A real call answering "What is 2+2?" contains 4 and leaves the board unchanged |
+| test_live_add_card | A real call asked to add a card to Review returns a changed board with the new card |
+
+## Frontend unit (Vitest) - `frontend/src/`
+
+### lib/kanban.test.ts (pure reorder logic)
+
+| Test | What it checks |
+| --- | --- |
+| reorders cards in the same column | Dropping a card onto another card in the same column swaps their order |
+| moves cards to another column | Dropping onto a card in another column inserts it there |
+| drops cards to the end of a column | Dropping onto a column itself appends the card |
+| returns columns unchanged for unknown ids | Unknown ids return the same columns object |
+| returns columns unchanged when dropped on itself | Dropping a card on itself changes nothing |
+| moves to an empty column | A card can be dropped into an empty column |
+| moves to the end of the same column when dropped on it | Dropping a card on its own column moves it to the end |
+
+### lib/api.test.ts (fetch wrappers, `fetch` mocked)
+
+| Test | What it checks |
+| --- | --- |
+| getBoard fetches the board | `GET /api/board` and the returned data |
+| renameColumn | `PUT /api/columns/{id}` with the title |
+| createCard sends snake_case column_id and returns the card | `POST /api/cards` body uses `column_id`; the new card is returned |
+| updateCard | `PUT /api/cards/{id}` with title and details |
+| deleteCard | `DELETE /api/cards/{id}` |
+| moveCard | `POST /api/cards/{id}/move` with column and position |
+| throws on a failed response | A non-OK response raises an error |
+
+### components/AuthGate.test.tsx (`fetch` mocked, board mocked)
+
+| Test | What it checks |
+| --- | --- |
+| shows the login form when not authenticated | A 401 from `/api/me` shows the Sign in form and hides the board |
+| shows the board when already authenticated | A 200 from `/api/me` shows the board |
+| shows an error on bad credentials | A failed login shows an invalid credentials message |
+| logs in and logs out | Logging in shows the board, logging out returns to the form |
+
+### components/KanbanBoard.test.tsx (`@/lib/api` mocked)
+
+| Test | What it checks |
+| --- | --- |
+| shows a loading state, then five columns from the API | Loading text first, then 5 columns; the board is fetched once |
+| shows an error with retry when the board cannot load | A load failure shows an alert; Retry loads the board |
+| calls onLogout from the log out button | The Log out button calls the prop |
+| renames a column and saves on blur | Typing updates the input, the API is called only on blur |
+| adds a card through the API | The add form calls `createCard` and shows the returned card |
+| does not add a card with an empty title | A blank title adds nothing and makes no API call |
+| deletes a card through the API | Remove removes the card and calls `deleteCard` |
+| edits a card through the API | Edit then Save shows the new title and calls `updateCard` |
+| cancels a card edit without calling the API | Cancel restores the card and makes no API call |
+| reloads the board and shows an error when saving fails | A failed save shows an error and refetches the board, restoring the card |
+
+### components/ChatSidebar.test.tsx (`@/lib/api` mocked)
+
+| Test | What it checks |
+| --- | --- |
+| sends the message with history and shows the reply | The message and history go to `chat`; both messages show; the input clears; a second send includes the earlier exchange |
+| shows a loading indicator while waiting | "Thinking..." shows and Send is disabled until the reply arrives |
+| ignores an empty message | A blank message does not call the API |
+| shows an error when the request fails | A failed request shows an error alert and keeps the user's message |
+| passes an updated board to the parent | A reply with a board calls `onBoardUpdate` with it |
+| collapses and expands | The collapse and expand buttons hide and show the chat |
+| KanbanBoard with chat: refreshes the board when the chat returns one | In the full board, a chat reply with a changed board updates the columns without refetching |
+
+## End to end (Playwright) - `frontend/tests/`
+
+Run against the container with the real backend. Tests that change data create uniquely named cards and clean up afterwards.
+
+### auth.spec.ts
+
+| Test | What it checks |
+| --- | --- |
+| unauthenticated visit shows the login form | A fresh visit shows the login form |
+| bad credentials show an error | Wrong credentials show an error and no board |
+| login shows the board and reload stays logged in | Good credentials show the board; reloading keeps the session |
+| logout returns to the login form | Log out shows the login form again |
+
+### kanban.spec.ts
+
+| Test | What it checks |
+| --- | --- |
+| loads the kanban board | Heading and 5 columns are visible |
+| a new card persists across reload | An added card is still there after reload |
+| a deleted card stays deleted after reload | A removed card is gone after reload |
+| an edited card persists across reload | An edited title is kept after reload |
+| a renamed column persists across reload | A renamed column keeps its name after reload (then restored) |
+| a moved card stays in its new column after reload | A card dragged to another column stays there after reload |
+| long unbroken text stays inside the card | A 200 character word without spaces wraps inside the card instead of overflowing |
+
+### chat.spec.ts (the `/api/chat` endpoint is mocked by route interception)
+
+| Test | What it checks |
+| --- | --- |
+| chat shows the reply and updates the board without reload | The reply is shown and a board change from the response appears without a reload |
+| chat shows an error when the endpoint fails | A 502 from the chat endpoint shows an error message |
+| chat sidebar collapses | The sidebar can be hidden and shown again |

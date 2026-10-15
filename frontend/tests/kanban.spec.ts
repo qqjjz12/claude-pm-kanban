@@ -39,3 +39,25 @@ test("moves a card between columns", async ({ page }) => {
   await page.mouse.up();
   await expect(targetColumn.getByTestId("card-card-1")).toBeVisible();
 });
+
+test("renames a column", async ({ page }) => {
+  await page.goto("/");
+  const input = page.getByTestId("column-col-backlog").getByLabel("Column title");
+  await input.fill("Ideas");
+  await expect(input).toHaveValue("Ideas");
+});
+
+test("edits a card", async ({ page }) => {
+  await page.goto("/");
+  const card = page.getByTestId("card-card-1");
+  await card.getByRole("button", { name: /edit/i }).click();
+  await card.getByLabel("Edit card title").fill("Edited title");
+  await card.getByRole("button", { name: "Save" }).click();
+  await expect(card.getByText("Edited title")).toBeVisible();
+});
+
+test("deletes a card", async ({ page }) => {
+  await page.goto("/");
+  await page.getByTestId("card-card-2").getByRole("button", { name: /delete/i }).click();
+  await expect(page.getByTestId("card-card-2")).toHaveCount(0);
+});

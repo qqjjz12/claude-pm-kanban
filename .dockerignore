@@ -5,3 +5,4 @@
 **/__pycache__
 frontend/.next
 frontend/out
+backend/static/*

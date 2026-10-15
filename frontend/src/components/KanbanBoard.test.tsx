@@ -43,4 +43,43 @@ describe("KanbanBoard", () => {
 
     expect(within(column).queryByText("New card")).not.toBeInTheDocument();
   });
+
+  it("edits a card", async () => {
+    render(<KanbanBoard />);
+    const column = getFirstColumn();
+    await userEvent.click(
+      within(column).getByRole("button", { name: /edit align roadmap themes/i })
+    );
+    const title = within(column).getByLabelText("Edit card title");
+    await userEvent.clear(title);
+    await userEvent.type(title, "Renamed card");
+    await userEvent.click(within(column).getByRole("button", { name: "Save" }));
+
+    expect(within(column).getByText("Renamed card")).toBeInTheDocument();
+    expect(
+      within(column).queryByText("Align roadmap themes")
+    ).not.toBeInTheDocument();
+  });
+
+  it("cancels a card edit", async () => {
+    render(<KanbanBoard />);
+    const column = getFirstColumn();
+    await userEvent.click(
+      within(column).getByRole("button", { name: /edit align roadmap themes/i })
+    );
+    await userEvent.type(within(column).getByLabelText("Edit card title"), "xyz");
+    await userEvent.click(within(column).getByRole("button", { name: "Cancel" }));
+
+    expect(within(column).getByText("Align roadmap themes")).toBeInTheDocument();
+  });
+
+  it("does not add a card with an empty title", async () => {
+    render(<KanbanBoard />);
+    const column = getFirstColumn();
+    const before = within(column).queryAllByTestId(/card-/).length;
+    await userEvent.click(within(column).getByRole("button", { name: /add a card/i }));
+    await userEvent.type(within(column).getByPlaceholderText(/card title/i), "   ");
+    await userEvent.click(within(column).getByRole("button", { name: /add card/i }));
+    expect(within(column).queryAllByTestId(/card-/)).toHaveLength(before);
+  });
 });

@@ -70,6 +70,13 @@ export const KanbanBoard = () => {
     }));
   };
 
+  const handleEditCard = (cardId: string, title: string, details: string) => {
+    setBoard((prev) => ({
+      ...prev,
+      cards: { ...prev.cards, [cardId]: { id: cardId, title, details } },
+    }));
+  };
+
   const handleDeleteCard = (columnId: string, cardId: string) => {
     setBoard((prev) => {
       return {
@@ -148,6 +155,7 @@ export const KanbanBoard = () => {
                 onRename={handleRenameColumn}
                 onAddCard={handleAddCard}
                 onDeleteCard={handleDeleteCard}
+                onEditCard={handleEditCard}
               />
             ))}
           </section>

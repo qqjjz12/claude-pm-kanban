@@ -50,12 +50,12 @@ Success: hello world page and API call work from within the container on Windows
 ## Part 3: Add in Frontend
 
 Substeps:
-- [ ] Set `output: 'export'` in `next.config.ts`; make `npm run build` produce `frontend/out`
-- [ ] Dockerfile adds a node build stage; copy `out/` into the image and serve it at `/` instead of the hello page
-- [ ] Remove the hello placeholder page
-- [ ] Update Playwright config to run against the Docker app on port 8000 (baseURL), keeping existing tests
-- [ ] Fill coverage gaps in unit tests: `moveCard` (same column, cross column, onto column, invalid ids), `createId`, KanbanBoard (rename, add, delete)
-- [ ] Add card editing to the UI only if missing and required by the business requirements (cards "can be edited"); include tests
+- [x] Set `output: 'export'` in `next.config.ts`; make `npm run build` produce `frontend/out`
+- [x] Dockerfile adds a node build stage; copy `out/` into the image and serve it at `/` instead of the hello page
+- [x] Remove the hello placeholder page
+- [x] Update Playwright config to run against the Docker app on port 8000 (baseURL), keeping existing tests (no webServer; start the container first)
+- [x] Fill coverage gaps in unit tests: `moveCard` (same column, cross column, onto column, invalid ids), `createId`, KanbanBoard (rename, add, delete)
+- [x] Add card editing to the UI only if missing and required by the business requirements (cards "can be edited"); include tests
 
 Tests:
 - Vitest unit tests all pass with coverage report reviewed

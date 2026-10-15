@@ -1,5 +1,30 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 import { login } from "./helpers";
+
+// Data persists in the backend, so each test creates its own uniquely named
+// card and removes it at the end, leaving the seeded board untouched.
+
+const column = (page: Page, index: number) =>
+  page.locator('[data-testid^="column-"]').nth(index);
+
+const card = (page: Page, title: string) =>
+  page.locator('[data-testid^="card-"]', { hasText: title });
+
+const addCard = async (page: Page, index: number, title: string) => {
+  const col = column(page, index);
+  await col.getByRole("button", { name: /add a card/i }).click();
+  await col.getByPlaceholder("Card title").fill(title);
+  await col.getByPlaceholder("Details").fill("Added via e2e.");
+  await col.getByRole("button", { name: /add card/i }).click();
+  await expect(card(page, title)).toBeVisible();
+};
+
+const removeCard = async (page: Page, title: string) => {
+  await card(page, title).getByRole("button", { name: /^delete/i }).click();
+  await expect(card(page, title)).toHaveCount(0);
+};
+
+const uniqueTitle = (label: string) => `${label} ${Date.now()}`;
 
 test.beforeEach(async ({ page }) => {
   await login(page);
@@ -10,53 +35,75 @@ test("loads the kanban board", async ({ page }) => {
   await expect(page.locator('[data-testid^="column-"]')).toHaveCount(5);
 });
 
-test("adds a card to a column", async ({ page }) => {
-  const firstColumn = page.locator('[data-testid^="column-"]').first();
-  await firstColumn.getByRole("button", { name: /add a card/i }).click();
-  await firstColumn.getByPlaceholder("Card title").fill("Playwright card");
-  await firstColumn.getByPlaceholder("Details").fill("Added via e2e.");
-  await firstColumn.getByRole("button", { name: /add card/i }).click();
-  await expect(firstColumn.getByText("Playwright card")).toBeVisible();
+test("a new card persists across reload", async ({ page }) => {
+  const title = uniqueTitle("Persist");
+  await addCard(page, 0, title);
+  await page.reload();
+  await expect(column(page, 0).getByText(title)).toBeVisible();
+  await removeCard(page, title);
 });
 
-test("moves a card between columns", async ({ page }) => {
-  const card = page.getByTestId("card-card-1");
-  const targetColumn = page.getByTestId("column-col-review");
-  const cardBox = await card.boundingBox();
-  const columnBox = await targetColumn.boundingBox();
-  if (!cardBox || !columnBox) {
+test("a deleted card stays deleted after reload", async ({ page }) => {
+  const title = uniqueTitle("Delete");
+  await addCard(page, 0, title);
+  await removeCard(page, title);
+  await page.reload();
+  await expect(page.locator('[data-testid^="column-"]')).toHaveCount(5);
+  await expect(card(page, title)).toHaveCount(0);
+});
+
+test("an edited card persists across reload", async ({ page }) => {
+  const title = uniqueTitle("Edit");
+  const edited = `${title} edited`;
+  await addCard(page, 0, title);
+  await card(page, title).getByRole("button", { name: /^edit/i }).click();
+  // While editing, the title is an input value rather than text.
+  await column(page, 0).getByLabel("Edit card title").fill(edited);
+  await column(page, 0).getByRole("button", { name: "Save", exact: true }).click();
+  await expect(card(page, edited)).toBeVisible();
+  await page.reload();
+  await expect(card(page, edited)).toBeVisible();
+  await removeCard(page, edited);
+});
+
+test("a renamed column persists across reload", async ({ page }) => {
+  const original = await column(page, 1).getByLabel("Column title").inputValue();
+  const renamed = uniqueTitle("Renamed");
+  const input = column(page, 1).getByLabel("Column title");
+  await input.fill(renamed);
+  await input.blur();
+  // Wait for the save before reloading.
+  await page.waitForResponse(
+    (r) => r.url().includes("/api/columns/") && r.request().method() === "PUT"
+  );
+  await page.reload();
+  await expect(column(page, 1).getByLabel("Column title")).toHaveValue(renamed);
+
+  await column(page, 1).getByLabel("Column title").fill(original);
+  await column(page, 1).getByLabel("Column title").blur();
+  await page.waitForResponse(
+    (r) => r.url().includes("/api/columns/") && r.request().method() === "PUT"
+  );
+});
+
+test("a moved card stays in its new column after reload", async ({ page }) => {
+  const title = uniqueTitle("Move");
+  await addCard(page, 0, title);
+
+  const source = await card(page, title).boundingBox();
+  const target = await column(page, 3).boundingBox();
+  if (!source || !target) {
     throw new Error("Unable to resolve drag coordinates.");
   }
-
-  await page.mouse.move(
-    cardBox.x + cardBox.width / 2,
-    cardBox.y + cardBox.height / 2
-  );
+  await page.mouse.move(source.x + source.width / 2, source.y + source.height / 2);
   await page.mouse.down();
-  await page.mouse.move(
-    columnBox.x + columnBox.width / 2,
-    columnBox.y + 120,
-    { steps: 12 }
-  );
+  await page.mouse.move(target.x + target.width / 2, target.y + 120, { steps: 12 });
+  const saved = page.waitForResponse((r) => r.url().includes("/move"));
   await page.mouse.up();
-  await expect(targetColumn.getByTestId("card-card-1")).toBeVisible();
-});
+  await saved;
+  await expect(column(page, 3).getByText(title)).toBeVisible();
 
-test("renames a column", async ({ page }) => {
-  const input = page.getByTestId("column-col-backlog").getByLabel("Column title");
-  await input.fill("Ideas");
-  await expect(input).toHaveValue("Ideas");
-});
-
-test("edits a card", async ({ page }) => {
-  const card = page.getByTestId("card-card-1");
-  await card.getByRole("button", { name: /edit/i }).click();
-  await card.getByLabel("Edit card title").fill("Edited title");
-  await card.getByRole("button", { name: "Save" }).click();
-  await expect(card.getByText("Edited title")).toBeVisible();
-});
-
-test("deletes a card", async ({ page }) => {
-  await page.getByTestId("card-card-2").getByRole("button", { name: /delete/i }).click();
-  await expect(page.getByTestId("card-card-2")).toHaveCount(0);
+  await page.reload();
+  await expect(column(page, 3).getByText(title)).toBeVisible();
+  await removeCard(page, title);
 });

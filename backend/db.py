@@ -54,7 +54,9 @@ DEFAULT_BOARD = [
 def connect() -> sqlite3.Connection:
     path = Path(os.environ.get("PM_DB_PATH", "pm.db"))
     path.parent.mkdir(parents=True, exist_ok=True)
-    conn = sqlite3.connect(path)
+    # One connection per request, used by one thread at a time. FastAPI may run a
+    # dependency's setup and teardown on different worker threads.
+    conn = sqlite3.connect(path, check_same_thread=False)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON")
     return conn

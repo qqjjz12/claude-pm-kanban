@@ -1,6 +1,6 @@
 # Frontend
 
-Next.js 16 (App Router, static export), React 19, TypeScript, Tailwind 4. Board state lives in React state and resets on reload. Auth only; board data is not yet fetched from the backend.
+Next.js 16 (App Router, static export), React 19, TypeScript, Tailwind 4. Board data is loaded from and saved to the backend API (`src/lib/api.ts`).
 
 ## Structure
 
@@ -8,12 +8,14 @@ Next.js 16 (App Router, static export), React 19, TypeScript, Tailwind 4. Board 
 - `src/app/layout.tsx`, `globals.css` - layout, fonts, CSS variables for the color scheme
 - `src/components/AuthGate.tsx` - checks `/api/me`, shows `LoginForm` or the board; handles login/logout
 - `src/components/LoginForm.tsx` - username/password form with error message
-- `src/components/KanbanBoard.tsx` - client component; owns `BoardData` state, dnd-kit `DndContext`, `onLogout` prop (Log out button), handlers for rename column, add, edit, delete card, drag end
+- `src/components/KanbanBoard.tsx` - client component; loads the board, owns `BoardData` state, dnd-kit `DndContext`, `onLogout` prop (Log out button). Changes apply optimistically then persist via the API; on failure it reloads the board and shows an error. Column renames save on blur; new cards wait for the server id
 - `src/components/KanbanColumn.tsx` - one column; editable title, card list, new card form
 - `src/components/KanbanCard.tsx` - sortable card with inline edit and delete
 - `src/components/KanbanCardPreview.tsx` - card rendering used in the drag overlay
 - `src/components/NewCardForm.tsx` - collapsible add-card form
-- `src/lib/kanban.ts` - types (`Card`, `Column`, `BoardData`), `initialData` (5 columns, 8 cards), `moveCard`, `createId`
+- `src/lib/kanban.ts` - types (`Card`, `Column`, `BoardData`) and `moveCard` (pure reorder logic)
+- `src/lib/api.ts` - typed fetch wrappers for the backend routes
+- `src/test/fixtures.ts` - `initialData` board used by unit tests
 
 ## Data model
 
@@ -21,8 +23,8 @@ Next.js 16 (App Router, static export), React 19, TypeScript, Tailwind 4. Board 
 
 ## Tests
 
-- Unit (Vitest + Testing Library, jsdom): `src/**/*.test.ts(x)`, run with `npm run test:unit`
-- E2E (Playwright, chromium): `tests/*.spec.ts`, run with `npm run test:e2e`; runs against the running container at http://localhost:8000 (start it with scripts/start first); `tests/helpers.ts` has a `login` helper
+- Unit (Vitest + Testing Library, jsdom): `src/**/*.test.ts(x)`, run with `npm run test:unit`; the board tests mock `@/lib/api`
+- E2E (Playwright, chromium): `tests/*.spec.ts`, run with `npm run test:e2e`; runs against the running container at http://localhost:8000 (start it with scripts/start first); `tests/helpers.ts` has a `login` helper. Data persists in the backend, so e2e tests create their own uniquely named cards and delete them afterwards
 
 ## Notes
 

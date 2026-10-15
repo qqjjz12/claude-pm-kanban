@@ -111,10 +111,10 @@ Success: all backend tests pass; API behaves per above.
 ## Part 7: Frontend + Backend
 
 Substeps:
-- [ ] `frontend/src/lib/api.ts`: typed fetch wrappers for the routes above
-- [ ] KanbanBoard loads from `GET /api/board` and calls the API on each change (rename, add, edit, delete, move); optimistic update with refetch on error
-- [ ] Loading and error states
-- [ ] Remove `initialData` from runtime use (keep as test fixture if needed)
+- [x] `frontend/src/lib/api.ts`: typed fetch wrappers for the routes above
+- [x] KanbanBoard loads from `GET /api/board` and calls the API on each change (rename, add, edit, delete, move); optimistic update with refetch on error
+- [x] Loading and error states
+- [x] Remove `initialData` from runtime use (keep as test fixture if needed)
 
 Tests:
 - Vitest with mocked fetch: load, each mutation calls the right endpoint, error path refetches

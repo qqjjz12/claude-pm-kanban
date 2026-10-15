@@ -2,6 +2,15 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { AuthGate } from "@/components/AuthGate";
 
+vi.mock("@/components/KanbanBoard", () => ({
+  KanbanBoard: ({ onLogout }: { onLogout: () => void }) => (
+    <div>
+      <h1>Kanban Studio</h1>
+      <button onClick={onLogout}>Log out</button>
+    </div>
+  ),
+}));
+
 const respond = (ok: boolean) => Promise.resolve({ ok } as Response);
 
 describe("AuthGate", () => {

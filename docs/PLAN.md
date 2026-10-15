@@ -81,9 +81,9 @@ Success: board is only visible after logging in with user/password; logout works
 ## Part 5: Database modeling
 
 Substeps:
-- [ ] Propose SQLite schema: `users` (id, username, password placeholder), `boards` (id, user_id unique for MVP, name), `columns` (id, board_id, title, position), `cards` (id, column_id, title, details, position)
-- [ ] Save schema as JSON in `docs/schema.json` (tables, columns, types, keys, constraints)
-- [ ] Write `docs/DATABASE.md` explaining the approach: ordering via `position`, one board per user enforced by unique constraint, DB created and seeded on startup, multi-user ready
+- [x] Propose SQLite schema: `users` (id, username, password placeholder), `boards` (id, user_id unique for MVP, name), `columns` (id, board_id, title, position), `cards` (id, column_id, title, details, position)
+- [x] Save schema as JSON in `docs/schema.json` (tables, columns, types, keys, constraints)
+- [x] Write `docs/DATABASE.md` explaining the approach: ordering via `position`, one board per user enforced by unique constraint, DB created and seeded on startup, multi-user ready
 - [ ] User reviews and signs off
 
 Success: user approves the schema and document.

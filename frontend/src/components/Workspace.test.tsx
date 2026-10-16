@@ -2,8 +2,13 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { Workspace } from "@/components/Workspace";
 import * as api from "@/lib/api";
+import { downloadJson } from "@/lib/download";
 
 vi.mock("@/lib/api");
+vi.mock("@/lib/download", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/download")>()),
+  downloadJson: vi.fn(),
+}));
 vi.mock("@/components/KanbanBoard", () => ({
   KanbanBoard: ({
     boardId,
@@ -181,5 +186,24 @@ describe("Workspace", () => {
     await userEvent.click(screen.getByRole("button", { name: "Delete board" }));
     await waitFor(() => expect(shownBoard()).toBe("1"));
     expect(mocked.deleteBoard).toHaveBeenCalledWith(2);
+  });
+
+  it("exports the current board as a JSON file named after it", async () => {
+    mocked.exportBoard.mockResolvedValue({ name: "Roadmap", columns: [] });
+    await renderWorkspace();
+    await userEvent.selectOptions(screen.getByLabelText("Board"), "2");
+    await userEvent.click(screen.getByRole("button", { name: "Export board" }));
+    await waitFor(() =>
+      expect(downloadJson).toHaveBeenCalledWith("roadmap.json", { name: "Roadmap", columns: [] })
+    );
+    expect(mocked.exportBoard).toHaveBeenCalledWith(2);
+  });
+
+  it("shows an error when the export fails", async () => {
+    mocked.exportBoard.mockRejectedValue(new Error("nope"));
+    await renderWorkspace();
+    await userEvent.click(screen.getByRole("button", { name: "Export board" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent(/could not export/i);
+    expect(downloadJson).not.toHaveBeenCalled();
   });
 });

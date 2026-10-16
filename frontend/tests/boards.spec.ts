@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { register, uniqueName } from "./helpers";
+import { register, uniqueName, reloadSettled } from "./helpers";
 
 const newBoard = async (page: Page, name: string, template?: string) => {
   await page.getByRole("button", { name: "New board" }).click();
@@ -52,7 +52,7 @@ test("a new board's columns survive a reload", async ({ page }) => {
   await page.getByRole("button", { name: "Add column" }).click();
   await expect(page.getByLabel("Column title")).toHaveValue("Ideas");
 
-  await page.reload();
+  await reloadSettled(page);
   // Reload returns to the first board; the new one still has its column.
   await page.getByLabel("Board", { exact: true }).selectOption({ label: "Empty one" });
   await expect(page.getByLabel("Column title")).toHaveValue("Ideas");
@@ -78,7 +78,7 @@ test("add and delete columns, confirming when cards would be lost", async ({ pag
   await expect(page.getByTestId(/column-/)).toHaveCount(4);
   await expect(page.getByText("Align roadmap themes")).toHaveCount(0);
 
-  await page.reload();
+  await reloadSettled(page);
   await expect(page.getByTestId(/column-/)).toHaveCount(4);
 });
 

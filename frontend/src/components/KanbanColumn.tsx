@@ -5,7 +5,7 @@ import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable"
 import type { Card, CardFields, Column } from "@/lib/kanban";
 import { KanbanCard } from "@/components/KanbanCard";
 import { NewCardForm } from "@/components/NewCardForm";
-import { TrashIcon } from "@/components/icons";
+import { ChevronLeftIcon, ChevronRightIcon, TrashIcon } from "@/components/icons";
 
 type KanbanColumnProps = {
   column: Column;
@@ -15,6 +15,9 @@ type KanbanColumnProps = {
   onRename: (columnId: string, title: string) => void;
   onRenameCommit: (columnId: string, title: string) => void;
   onDelete: (columnId: string) => void;
+  onMove: (columnId: string, delta: -1 | 1) => void;
+  canMoveLeft: boolean;
+  canMoveRight: boolean;
   onAddCard: (columnId: string, title: string, details: string, fields: CardFields) => void;
   onDeleteCard: (columnId: string, cardId: string) => void;
   onOpenCard: (cardId: string) => void;
@@ -29,6 +32,9 @@ export const KanbanColumn = ({
   onRename,
   onRenameCommit,
   onDelete,
+  onMove,
+  canMoveLeft,
+  canMoveRight,
   onAddCard,
   onDeleteCard,
   onEditCard,
@@ -56,6 +62,16 @@ export const KanbanColumn = ({
     >
       <div className="flex items-center gap-2">
         <div className="h-6 w-1.5 shrink-0 rounded-full bg-[var(--accent-yellow)]" />
+        <button
+          type="button"
+          onClick={() => onMove(column.id, -1)}
+          disabled={!canMoveLeft}
+          aria-label={`Move ${column.title} left`}
+          title="Move column left"
+          className="shrink-0 rounded-full p-1 text-[var(--gray-text)] transition hover:text-[var(--primary-blue)] disabled:opacity-25"
+        >
+          <ChevronLeftIcon />
+        </button>
         <input
           value={column.title}
           onChange={(event) => onRename(column.id, event.target.value)}
@@ -63,6 +79,16 @@ export const KanbanColumn = ({
           className="min-w-0 flex-1 rounded-lg bg-transparent px-1 font-display text-lg font-semibold text-[var(--navy-dark)] outline-none focus:bg-[var(--surface)]"
           aria-label="Column title"
         />
+        <button
+          type="button"
+          onClick={() => onMove(column.id, 1)}
+          disabled={!canMoveRight}
+          aria-label={`Move ${column.title} right`}
+          title="Move column right"
+          className="shrink-0 rounded-full p-1 text-[var(--gray-text)] transition hover:text-[var(--primary-blue)] disabled:opacity-25"
+        >
+          <ChevronRightIcon />
+        </button>
         <span className="shrink-0 rounded-full bg-[var(--surface)] px-2.5 py-0.5 text-xs font-semibold text-[var(--gray-text)]">
           {filtering ? `${cards.length}/${totalCount}` : cards.length}
         </span>

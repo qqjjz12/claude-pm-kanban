@@ -250,3 +250,15 @@ export const dashboardStats = (board: BoardData, now = new Date()) => {
     comments,
   };
 };
+
+// Move a column one step (delta -1 or +1); returns the same array when it cannot move.
+export const moveColumnBy = (columns: Column[], columnId: string, delta: number): Column[] => {
+  const from = columns.findIndex((column) => column.id === columnId);
+  const to = from + delta;
+  if (from === -1 || to < 0 || to >= columns.length) {
+    return columns;
+  }
+  const next = [...columns];
+  [next[from], next[to]] = [next[to], next[from]];
+  return next;
+};

@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { register, uniqueName } from "./helpers";
+import { register, uniqueName, reloadSettled } from "./helpers";
 
 test("search and filters narrow the board and clear again", async ({ page }) => {
   await register(page, uniqueName("flt"));
@@ -31,6 +31,6 @@ test("search and filters narrow the board and clear again", async ({ page }) => 
   await expect(page.getByText("Align roadmap themes")).toBeVisible();
 
   // Filters are per view: reload shows everything.
-  await page.reload();
+  await reloadSettled(page);
   await expect(summary).toContainText("8 cards");
 });

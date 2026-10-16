@@ -1,5 +1,12 @@
 import { useState, type FormEvent } from "react";
-import { CheckIcon, CloseIcon, PencilIcon, PlusIcon, TrashIcon } from "@/components/icons";
+import {
+  CheckIcon,
+  CloseIcon,
+  DownloadIcon,
+  PencilIcon,
+  PlusIcon,
+  TrashIcon,
+} from "@/components/icons";
 import type { BoardSummary, BoardTemplate } from "@/lib/api";
 
 type BoardControlsProps = {
@@ -9,6 +16,7 @@ type BoardControlsProps = {
   onCreate: (name: string, template: BoardTemplate) => Promise<void>;
   onRename: (id: number, name: string) => Promise<void>;
   onDelete: (id: number) => Promise<void>;
+  onExport: (id: number) => Promise<void>;
 };
 
 type Mode = "idle" | "create" | "rename" | "delete";
@@ -25,6 +33,7 @@ export const BoardControls = ({
   onCreate,
   onRename,
   onDelete,
+  onExport,
 }: BoardControlsProps) => {
   const [mode, setMode] = useState<Mode>("idle");
   const [name, setName] = useState("");
@@ -42,6 +51,7 @@ export const BoardControls = ({
   const run = async (action: () => Promise<void>, failure: string) => {
     try {
       await action();
+      setError("");
       setMode("idle");
     } catch {
       setError(failure);
@@ -136,7 +146,7 @@ export const BoardControls = ({
   }
 
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex flex-wrap items-center gap-2">
       <select
         value={boardId}
         onChange={(event) => onSelect(Number(event.target.value))}
@@ -177,6 +187,20 @@ export const BoardControls = ({
       >
         <TrashIcon />
       </button>
+      <button
+        type="button"
+        onClick={() => run(() => onExport(boardId), "Could not export the board.")}
+        aria-label="Export board"
+        title="Export board as JSON"
+        className={iconButton}
+      >
+        <DownloadIcon />
+      </button>
+      {error && (
+        <p role="alert" className="w-full text-sm font-medium text-red-600">
+          {error}
+        </p>
+      )}
     </div>
   );
 };

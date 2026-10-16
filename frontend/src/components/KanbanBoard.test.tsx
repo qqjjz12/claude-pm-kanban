@@ -413,4 +413,35 @@ describe("KanbanBoard", () => {
       expect(await screen.findByRole("alert")).toHaveTextContent(/could not reach the server/i);
     });
   });
+
+  describe("reordering columns", () => {
+    const titles = () => screen.getAllByLabelText("Column title").map((el) => (el as HTMLInputElement).value);
+
+    it("moves a column right and left and saves the new position", async () => {
+      mocked.moveColumn.mockResolvedValue({});
+      await renderBoard();
+      await userEvent.click(screen.getByRole("button", { name: "Move Backlog right" }));
+      expect(titles().slice(0, 2)).toEqual(["Discovery", "Backlog"]);
+      expect(mocked.moveColumn).toHaveBeenLastCalledWith("col-backlog", 1);
+
+      await userEvent.click(screen.getByRole("button", { name: "Move Done left" }));
+      expect(titles().slice(-2)).toEqual(["Done", "Review"]);
+      expect(mocked.moveColumn).toHaveBeenLastCalledWith("col-done", 3);
+    });
+
+    it("disables the buttons at the edges", async () => {
+      await renderBoard();
+      expect(screen.getByRole("button", { name: "Move Backlog left" })).toBeDisabled();
+      expect(screen.getByRole("button", { name: "Move Done right" })).toBeDisabled();
+      expect(screen.getByRole("button", { name: "Move Backlog right" })).toBeEnabled();
+    });
+
+    it("reloads the saved order when saving fails", async () => {
+      mocked.moveColumn.mockRejectedValue(new Error("500"));
+      await renderBoard();
+      await userEvent.click(screen.getByRole("button", { name: "Move Backlog right" }));
+      expect(await screen.findByRole("alert")).toHaveTextContent(/reloaded/i);
+      expect(titles()[0]).toBe("Backlog");
+    });
+  });
 });

@@ -19,3 +19,10 @@ export const register = async (page: Page, username: string, password = "e2e-pas
   await page.getByLabel("Confirm password").fill(password);
   await page.getByRole("button", { name: "Create account" }).click();
 };
+
+// Changes are saved in the background after the UI updates; wait for those requests to
+// finish so a reload does not race them.
+export const reloadSettled = async (page: Page) => {
+  await page.waitForLoadState("networkidle");
+  await page.reload();
+};

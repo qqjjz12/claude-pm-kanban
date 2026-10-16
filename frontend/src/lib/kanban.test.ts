@@ -8,6 +8,7 @@ import {
   isOverdue,
   matchesFilters,
   moveCard,
+  moveColumnBy,
   parseLabels,
   today,
   type Card,
@@ -224,5 +225,26 @@ describe("dashboardStats", () => {
     );
     expect(stats.overdue.map((c) => c.id)).toEqual(["late", "later"]);
     expect(stats.dueSoon.map((c) => c.id)).toEqual(["today", "edge"]);
+  });
+});
+
+describe("moveColumnBy", () => {
+  const columns: Column[] = [
+    { id: "a", title: "A", cardIds: [] },
+    { id: "b", title: "B", cardIds: [] },
+    { id: "c", title: "C", cardIds: [] },
+  ];
+  const ids = (list: Column[]) => list.map((column) => column.id);
+
+  it("swaps with the neighbour without mutating the input", () => {
+    expect(ids(moveColumnBy(columns, "b", -1))).toEqual(["b", "a", "c"]);
+    expect(ids(moveColumnBy(columns, "b", 1))).toEqual(["a", "c", "b"]);
+    expect(ids(columns)).toEqual(["a", "b", "c"]);
+  });
+
+  it("returns the same array at the edges and for unknown ids", () => {
+    expect(moveColumnBy(columns, "a", -1)).toBe(columns);
+    expect(moveColumnBy(columns, "c", 1)).toBe(columns);
+    expect(moveColumnBy(columns, "zzz", 1)).toBe(columns);
   });
 });

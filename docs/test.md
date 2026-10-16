@@ -8,7 +8,7 @@
 | Frontend unit (Vitest) | `cd frontend && npm run test:unit` | jsdom; the API module or `fetch` is mocked |
 | End to end (Playwright) | `cd frontend && npm run test:e2e` | Needs the container running (`scripts/start`), at http://localhost:8000 |
 
-Counts: backend 186 passing plus 2 live tests skipped without the key, frontend unit 137, end to end 32.
+Counts: backend 196 passing plus 2 live tests skipped without the key, frontend unit 148, end to end 34.
 
 ## Backend (pytest) - `backend/tests/`
 
@@ -98,6 +98,21 @@ Counts: backend 186 passing plus 2 live tests skipped without the key, frontend 
 | test_login_is_blocked_after_too_many_failures_even_with_the_right_password and the throttle tests that follow | 5 failures in 5 minutes give 429 with Retry-After; per username (ignoring case) and per client; success resets; the window expires; password change and account deletion are throttled and share the counter |
 | test_oversized_* | Login and password fields over 200 characters are 422 and never hashed |
 | test_default_secret_warning | A warning is logged when `PM_SECRET` is unset |
+
+### test_export.py
+
+| Test | What it checks |
+| --- | --- |
+| test_export_contains_the_whole_sample_board / test_export_includes_fields_checklists_and_comments_in_order | Every card field, checklist and comments are exported, in order, without internal ids |
+| test_export_follows_column_and_card_order / test_export_of_an_empty_board | Ordering and empty boards |
+| test_export_unknown_board_is_404 / test_cannot_export_another_users_board / test_export_requires_login | Ownership and auth |
+
+### test_concurrency.py
+
+| Test | What it checks |
+| --- | --- |
+| test_concurrent_card_creates_keep_positions_contiguous | 36 overlapping creates in one column still give positions 0..n-1 (this failed with duplicate positions before `@writes` was added) |
+| test_concurrent_column_moves_end_with_a_valid_order / test_concurrent_card_moves_and_deletes_keep_every_column_contiguous | Overlapping moves and deletes leave every parent contiguous |
 
 ### test_migration.py
 
@@ -257,6 +272,10 @@ Live (skipped when `OPENROUTER_API_KEY` is not set):
 
 `parseLabels`, `today`, `isOverdue`, `formatDueDate`, `matchesFilters` (search over title/details/labels, priority, exact label, overdue, combined), `allLabels`, `boardStats`. KanbanBoard tests cover the filter bar: summary, hiding, counts, clearing, editing a filtered card. KanbanBoard tests also cover adding a card with fields, badges and editing/clearing fields.
 
+### lib/download.test.ts
+
+`fileSlug` produces safe file names; `downloadJson` creates, clicks and releases a temporary link. Workspace tests cover the export button and its error; KanbanBoard tests cover the column move buttons.
+
 ### components/Forms.test.tsx
 
 New card and new column forms (cancel, reset, blank), drag preview, blank title edit is not saved.
@@ -328,6 +347,12 @@ Priority, due date (overdue badge) and labels persist across reload; edit and cl
 ### accounts.spec.ts (hardening)
 
 Five wrong passwords lock sign in with a clear message; an expired session returns to sign in with a notice.
+
+### columns-export.spec.ts
+
+Columns are reordered with the arrow buttons and the order persists; a board downloads as a JSON file with the expected contents.
+
+Specs that reload the page use `reloadSettled` (waits for background saves) so they do not race the optimistic UI.
 
 ### dashboard-activity.spec.ts
 

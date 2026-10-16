@@ -27,6 +27,7 @@ import {
   isFiltering,
   matchesFilters,
   moveCard,
+  moveColumnBy,
   type BoardData,
   type CardFields,
   type Filters,
@@ -169,6 +170,17 @@ export const KanbanBoard = ({ boardId, header, notice }: KanbanBoardProps) => {
     );
   };
 
+  const handleMoveColumn = (columnId: string, delta: -1 | 1) => {
+    const columns = moveColumnBy(board.columns, columnId, delta);
+    if (columns === board.columns) {
+      return;
+    }
+    setBoard({ ...board, columns });
+    persist(() =>
+      api.moveColumn(columnId, columns.findIndex((column) => column.id === columnId))
+    );
+  };
+
   const handleAddColumn = (title: string) => {
     persist(async () => {
       const column = await api.createColumn(title);
@@ -305,7 +317,7 @@ export const KanbanBoard = ({ boardId, header, notice }: KanbanBoardProps) => {
           onDragEnd={handleDragEnd}
         >
           <section className="grid auto-cols-[minmax(230px,1fr)] grid-flow-col gap-4 overflow-x-auto px-1 pb-8 -mb-6 -mx-1">
-            {board.columns.map((column) => (
+            {board.columns.map((column, index) => (
               <KanbanColumn
                 key={column.id}
                 column={column}
@@ -315,6 +327,9 @@ export const KanbanBoard = ({ boardId, header, notice }: KanbanBoardProps) => {
                 onRename={handleRenameColumn}
                 onRenameCommit={handleRenameCommit}
                 onDelete={handleDeleteColumn}
+                onMove={handleMoveColumn}
+                canMoveLeft={index > 0}
+                canMoveRight={index < board.columns.length - 1}
                 onAddCard={handleAddCard}
                 onDeleteCard={handleDeleteCard}
                 onEditCard={handleEditCard}

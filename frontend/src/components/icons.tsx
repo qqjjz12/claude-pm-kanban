@@ -66,6 +66,20 @@ export const ChevronRightIcon = ({ className }: IconProps) => (
   </Icon>
 );
 
+export const ChevronLeftIcon = ({ className }: IconProps) => (
+  <Icon className={className}>
+    <path d="M15 18l-6-6 6-6" />
+  </Icon>
+);
+
+export const DownloadIcon = ({ className }: IconProps) => (
+  <Icon className={className}>
+    <path d="M12 3v12" />
+    <path d="M7 10l5 5 5-5" />
+    <path d="M5 21h14" />
+  </Icon>
+);
+
 export const CheckIcon = ({ className }: IconProps) => (
   <Icon className={className}>
     <path d="M20 6 9 17l-5-5" />

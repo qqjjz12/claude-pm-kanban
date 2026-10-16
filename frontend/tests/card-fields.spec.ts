@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { register, uniqueName } from "./helpers";
+import { register, uniqueName, reloadSettled } from "./helpers";
 
 test("a card keeps its priority, due date and labels across reload", async ({ page }) => {
   await register(page, uniqueName("fld"));
@@ -18,7 +18,7 @@ test("a card keeps its priority, due date and labels across reload", async ({ pa
   await expect(card.getByText("release")).toHaveCount(1);
   await expect(card.getByText("urgent")).toBeVisible();
 
-  await page.reload();
+  await reloadSettled(page);
   const reloaded = page.getByTestId(/column-/).first().locator("article", { hasText: "Ship it" });
   await expect(reloaded.getByText("high")).toBeVisible();
   await expect(reloaded.getByText(/Overdue/)).toBeVisible();
@@ -39,7 +39,7 @@ test("editing a card changes and clears its fields", async ({ page }) => {
   await expect(card.getByText(/^Due /)).toBeVisible();
   await expect(card.getByText("planning")).toBeVisible();
 
-  await page.reload();
+  await reloadSettled(page);
   const again = page.getByTestId(/column-/).first().locator("article", { hasText: "Align roadmap themes" });
   await expect(again.getByText("planning")).toBeVisible();
 
@@ -49,7 +49,7 @@ test("editing a card changes and clears its fields", async ({ page }) => {
   await first.getByLabel("Due date").fill("");
   await first.getByLabel("Labels").fill("");
   await first.getByRole("button", { name: "Save", exact: true }).click();
-  await page.reload();
+  await reloadSettled(page);
   const cleared = page.getByTestId(/column-/).first().locator("article", { hasText: "Align roadmap themes" });
   await expect(cleared.getByText("planning")).toHaveCount(0);
   await expect(cleared.getByText(/^Due /)).toHaveCount(0);

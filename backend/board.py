@@ -305,3 +305,12 @@ def activity(
     conn=Depends(get_conn, scope="function"),
 ):
     return db.list_activity(conn, board_id, limit)
+
+
+@router.get("/boards/{board_id}/export")
+def export_board(
+    board_id: int,
+    username: str = Depends(current_user),
+    conn=Depends(get_conn, scope="function"),
+):
+    return db.export_board(conn, db.ensure_board(conn, username, board_id))

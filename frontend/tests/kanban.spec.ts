@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { login } from "./helpers";
+import { login, reloadSettled } from "./helpers";
 
 // Data persists in the backend, so each test creates its own uniquely named
 // card and removes it at the end, leaving the seeded board untouched.
@@ -41,7 +41,7 @@ test("loads the kanban board", async ({ page }) => {
 test("a new card persists across reload", async ({ page }) => {
   const title = uniqueTitle("Persist");
   await addCard(page, 0, title);
-  await page.reload();
+  await reloadSettled(page);
   await expect(column(page, 0).getByText(title)).toBeVisible();
   await removeCard(page, title);
 });
@@ -50,7 +50,7 @@ test("a deleted card stays deleted after reload", async ({ page }) => {
   const title = uniqueTitle("Delete");
   await addCard(page, 0, title);
   await removeCard(page, title);
-  await page.reload();
+  await reloadSettled(page);
   await expect(page.locator('[data-testid^="column-"]')).toHaveCount(5);
   await expect(card(page, title)).toHaveCount(0);
 });
@@ -64,7 +64,7 @@ test("an edited card persists across reload", async ({ page }) => {
   await column(page, 0).getByLabel("Edit card title").fill(edited);
   await column(page, 0).getByRole("button", { name: "Save", exact: true }).click();
   await expect(card(page, edited)).toBeVisible();
-  await page.reload();
+  await reloadSettled(page);
   await expect(card(page, edited)).toBeVisible();
   await removeCard(page, edited);
 });
@@ -84,7 +84,7 @@ test("a renamed column persists across reload", async ({ page }) => {
 
   try {
     await rename(renamed);
-    await page.reload();
+    await reloadSettled(page);
     await expect(column(page, 1).getByLabel("Column title")).toHaveValue(renamed);
   } finally {
     // Always put the real board back, even if an assertion above failed.
@@ -109,7 +109,7 @@ test("a moved card stays in its new column after reload", async ({ page }) => {
   await saved;
   await expect(column(page, 3).getByText(title)).toBeVisible();
 
-  await page.reload();
+  await reloadSettled(page);
   await expect(column(page, 3).getByText(title)).toBeVisible();
   await removeCard(page, title);
 });

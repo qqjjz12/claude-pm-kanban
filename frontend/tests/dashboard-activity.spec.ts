@@ -15,6 +15,7 @@ test("activity log records changes by the user", async ({ page }) => {
   await expect(page.getByText("Logged card")).toBeVisible();
   await page.getByRole("button", { name: "Delete Logged card", exact: true }).click();
   await expect(page.getByText("Logged card")).toHaveCount(0);
+  await page.waitForLoadState("networkidle"); // the log is read from the server, so let the saves land
 
   await page.getByRole("navigation", { name: "Views" }).getByRole("button", { name: "Activity", exact: true }).click();
   const panel = page.getByRole("region", { name: "Activity" });

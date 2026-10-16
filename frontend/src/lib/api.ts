@@ -70,6 +70,9 @@ export const renameBoard = (id: number, name: string): Promise<BoardSummary> =>
 export const deleteBoard = (id: number): Promise<BoardSummary[]> =>
   request("DELETE", `/api/boards/${id}`);
 
+export const exportBoard = (id: number): Promise<unknown> =>
+  request("GET", `/api/boards/${id}/export`);
+
 export const getBoard = (): Promise<BoardData> => request("GET", scoped("/api/board"));
 
 export const renameColumn = (columnId: string, title: string) =>

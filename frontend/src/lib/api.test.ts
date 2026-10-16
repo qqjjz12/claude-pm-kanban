@@ -276,3 +276,15 @@ describe("session expiry", () => {
     await expect(api.getBoard()).rejects.toMatchObject({ status: 401 });
   });
 });
+
+describe("exportBoard", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("fetches the export for a specific board without the active-board query", async () => {
+    api.setActiveBoard(3);
+    const fetchMock = stubFetch(true, { name: "B", columns: [] });
+    expect(await api.exportBoard(7)).toEqual({ name: "B", columns: [] });
+    api.setActiveBoard(null);
+    expect(lastCall(fetchMock)).toMatchObject({ url: "/api/boards/7/export", method: "GET" });
+  });
+});

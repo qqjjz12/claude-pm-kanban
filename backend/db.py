@@ -1,3 +1,4 @@
+import functools
 import hashlib
 import hmac
 import json
@@ -130,6 +131,23 @@ def get_conn():
         conn.close()
 
 
+def writes(func):
+    """Take SQLite's write lock before the function reads anything.
+
+    Python's sqlite3 only begins a transaction at the first write, so two requests could
+    both read the same state and then both write (two cards given the same position, for
+    example). Starting the transaction up front makes overlapping writers take turns.
+    """
+
+    @functools.wraps(func)
+    def wrapper(conn, *args, **kwargs):
+        if not conn.in_transaction:
+            conn.execute("BEGIN IMMEDIATE")
+        return func(conn, *args, **kwargs)
+
+    return wrapper
+
+
 def _scrypt(password: str, salt: bytes) -> bytes:
     return hashlib.scrypt(password.encode(), salt=salt, n=2**14, r=8, p=1)
 
@@ -197,6 +215,7 @@ def find_user(conn: sqlite3.Connection, username: str) -> sqlite3.Row | None:
     ).fetchone()
 
 
+@writes
 def create_user(
     conn: sqlite3.Connection, username: str, password: str | None, exist_ok: bool = False
 ) -> int:
@@ -214,12 +233,14 @@ def create_user(
     return user_id
 
 
+@writes
 def set_password(conn: sqlite3.Connection, user_id: int, password: str) -> None:
     conn.execute(
         "UPDATE users SET password_hash = ? WHERE id = ?", (hash_password(password), user_id)
     )
 
 
+@writes
 def delete_user(conn: sqlite3.Connection, user_id: int) -> None:
     conn.execute("DELETE FROM users WHERE id = ?", (user_id,))
 
@@ -238,6 +259,7 @@ def _add_columns(conn: sqlite3.Connection, board_id: int, layout) -> None:
             )
 
 
+@writes
 def create_board(
     conn: sqlite3.Connection, user_id: int, name: str, template: str = "standard"
 ) -> int:
@@ -280,10 +302,12 @@ def ensure_board(conn: sqlite3.Connection, username: str, board_id: int | None =
     return boards[0]["id"] if boards else create_board(conn, user_id, "My Board", "sample")
 
 
+@writes
 def rename_board(conn: sqlite3.Connection, board_id: int, name: str) -> None:
     conn.execute("UPDATE boards SET name = ? WHERE id = ?", (name, board_id))
 
 
+@writes
 def delete_board(conn: sqlite3.Connection, user_id: int, board_id: int) -> None:
     if len(list_boards(conn, user_id)) <= 1:
         raise ValueError("You cannot delete your only board")
@@ -409,6 +433,7 @@ def _set_order(conn: sqlite3.Connection, column_id: int, card_ids: list[int]) ->
         )
 
 
+@writes
 def rename_column(conn: sqlite3.Connection, board_id: int, column_id: str, title: str) -> None:
     pk = _require_column(conn, board_id, column_id)
     old = _column_title(conn, pk)
@@ -431,6 +456,7 @@ def _set_column_order(conn: sqlite3.Connection, ids: list[int]) -> None:
         conn.execute("UPDATE columns SET position = ? WHERE id = ?", (position, pk))
 
 
+@writes
 def create_column(conn: sqlite3.Connection, board_id: int, title: str) -> dict:
     position = len(_column_ids(conn, board_id))
     pk = conn.execute(
@@ -441,6 +467,7 @@ def create_column(conn: sqlite3.Connection, board_id: int, title: str) -> dict:
     return {"id": f"col-{pk}", "title": title, "cardIds": []}
 
 
+@writes
 def delete_column(conn: sqlite3.Connection, board_id: int, column_id: str) -> None:
     pk = _require_column(conn, board_id, column_id)
     title = _column_title(conn, pk)
@@ -450,6 +477,7 @@ def delete_column(conn: sqlite3.Connection, board_id: int, column_id: str) -> No
     _set_column_order(conn, _column_ids(conn, board_id))
 
 
+@writes
 def move_column(conn: sqlite3.Connection, board_id: int, column_id: str, position: int) -> None:
     pk = _require_column(conn, board_id, column_id)
     ids = [c for c in _column_ids(conn, board_id) if c != pk]
@@ -457,6 +485,7 @@ def move_column(conn: sqlite3.Connection, board_id: int, column_id: str, positio
     _set_column_order(conn, ids)
 
 
+@writes
 def create_card(
     conn: sqlite3.Connection,
     board_id: int,
@@ -478,6 +507,7 @@ def create_card(
     return _card_dict(conn.execute(CARD_SELECT + " WHERE cards.id = ?", (pk,)).fetchone())
 
 
+@writes
 def update_card(
     conn: sqlite3.Connection,
     board_id: int,
@@ -507,6 +537,7 @@ def update_card(
         conn.execute("UPDATE cards SET labels = ? WHERE id = ?", (json.dumps(labels), card["id"]))
 
 
+@writes
 def delete_card(conn: sqlite3.Connection, board_id: int, card_id: str) -> None:
     card = _require_card(conn, board_id, card_id)
     title = _card_title(conn, card["id"])
@@ -515,6 +546,7 @@ def delete_card(conn: sqlite3.Connection, board_id: int, card_id: str) -> None:
     _set_order(conn, card["column_id"], _card_ids(conn, card["column_id"]))
 
 
+@writes
 def move_card(
     conn: sqlite3.Connection, board_id: int, card_id: str, column_id: str, position: int
 ) -> None:
@@ -574,6 +606,7 @@ def _require_child(conn: sqlite3.Connection, board_id: int, table: str, pk: int)
     return row["card_id"]
 
 
+@writes
 def add_comment(
     conn: sqlite3.Connection, board_id: int, card_id: str, author: str, body: str
 ) -> str:
@@ -586,12 +619,14 @@ def add_comment(
     return card_id
 
 
+@writes
 def delete_comment(conn: sqlite3.Connection, board_id: int, comment_id: int) -> str:
     card_pk = _require_child(conn, board_id, "comments", comment_id)
     conn.execute("DELETE FROM comments WHERE id = ?", (comment_id,))
     return f"card-{card_pk}"
 
 
+@writes
 def add_checklist_item(conn: sqlite3.Connection, board_id: int, card_id: str, text: str) -> str:
     card = _require_card(conn, board_id, card_id)
     position = conn.execute(
@@ -604,6 +639,7 @@ def add_checklist_item(conn: sqlite3.Connection, board_id: int, card_id: str, te
     return card_id
 
 
+@writes
 def update_checklist_item(
     conn: sqlite3.Connection,
     board_id: int,
@@ -619,6 +655,7 @@ def update_checklist_item(
     return f"card-{card_pk}"
 
 
+@writes
 def delete_checklist_item(conn: sqlite3.Connection, board_id: int, item_id: int) -> str:
     card_pk = _require_child(conn, board_id, "checklist_items", item_id)
     conn.execute("DELETE FROM checklist_items WHERE id = ?", (item_id,))
@@ -629,3 +666,30 @@ def delete_checklist_item(conn: sqlite3.Connection, board_id: int, item_id: int)
     ):
         conn.execute("UPDATE checklist_items SET position = ? WHERE id = ?", (position, row["id"]))
     return f"card-{card_pk}"
+
+
+def export_board(conn: sqlite3.Connection, board_id: int) -> dict:
+    """The whole board as plain data: columns, cards with every field, checklists and comments."""
+    name = conn.execute("SELECT name FROM boards WHERE id = ?", (board_id,)).fetchone()["name"]
+    columns = []
+    for col in conn.execute(
+        "SELECT id, title FROM columns WHERE board_id = ? ORDER BY position", (board_id,)
+    ):
+        cards = []
+        for row in conn.execute(CARD_SELECT + " WHERE column_id = ? ORDER BY position", (col["id"],)):
+            card = _card_dict(row)
+            detail = card_detail(conn, board_id, card["id"])
+            cards.append({
+                "title": card["title"],
+                "details": card["details"],
+                "priority": card["priority"],
+                "dueDate": card["dueDate"],
+                "labels": card["labels"],
+                "checklist": [{"text": i["text"], "done": i["done"]} for i in detail["checklist"]],
+                "comments": [
+                    {"author": c["author"], "body": c["body"], "createdAt": c["createdAt"]}
+                    for c in detail["comments"]
+                ],
+            })
+        columns.append({"title": col["title"], "cards": cards})
+    return {"name": name, "columns": columns}

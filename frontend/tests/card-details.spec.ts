@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { register, uniqueName } from "./helpers";
+import { register, uniqueName, reloadSettled } from "./helpers";
 
 const openDetails = async (page: import("@playwright/test").Page, title: string) => {
   await page.getByRole("button", { name: `Details for ${title}`, exact: true }).click();
@@ -27,7 +27,7 @@ test("checklist and comments persist and show as badges", async ({ page }) => {
   await expect(card.getByText("Checklist 1/2")).toBeVisible();
   await expect(card.getByText("1 comment")).toBeVisible();
 
-  await page.reload();
+  await reloadSettled(page);
   const again = page.getByTestId(/^card-/).filter({ hasText: "Align roadmap themes" });
   await expect(again.getByText("Checklist 1/2")).toBeVisible();
   const reopened = await openDetails(page, "Align roadmap themes");
@@ -63,6 +63,6 @@ test("deleting a card closes nothing else and its details go with it", async ({ 
   await dialog.getByRole("button", { name: "Close details" }).click();
   await page.getByRole("button", { name: "Delete Prototype analytics view", exact: true }).click();
   await expect(page.getByText("Prototype analytics view")).toHaveCount(0);
-  await page.reload();
+  await reloadSettled(page);
   await expect(page.getByText("Prototype analytics view")).toHaveCount(0);
 });

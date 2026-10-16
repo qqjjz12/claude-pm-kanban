@@ -6,6 +6,7 @@ import { BoardControls } from "@/components/BoardControls";
 import { KanbanBoard } from "@/components/KanbanBoard";
 import { LogoutIcon, UserIcon } from "@/components/icons";
 import * as api from "@/lib/api";
+import { downloadJson, fileSlug } from "@/lib/download";
 
 type WorkspaceProps = {
   username: string;
@@ -62,6 +63,12 @@ export const Workspace = ({ username, onLogout }: WorkspaceProps) => {
     }
   };
 
+  const handleExport = async (id: number) => {
+    const data = await api.exportBoard(id);
+    const name = boards?.find((board) => board.id === id)?.name ?? "board";
+    downloadJson(`${fileSlug(name)}.json`, data);
+  };
+
   if (!boards || boardId === null) {
     return (
       <main className="flex min-h-screen items-center justify-center px-6 text-sm text-[var(--gray-text)]">
@@ -100,6 +107,7 @@ export const Workspace = ({ username, onLogout }: WorkspaceProps) => {
         onCreate={handleCreate}
         onRename={handleRename}
         onDelete={handleDelete}
+        onExport={handleExport}
       />
       <div className="flex items-center gap-2">
         <button

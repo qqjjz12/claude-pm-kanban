@@ -277,3 +277,45 @@ def test_invalid_output_is_retried_once(client, monkeypatch):
     monkeypatch.setattr(ai, "get_client", lambda: SimpleNamespace(chat=SimpleNamespace(completions=completions)))
     assert chat(client).json()["reply"] == "second try"
     assert len(calls) == 2
+
+
+# validation and limits
+
+
+def test_blank_title_operations_are_skipped_and_reported(client, mock_ai):
+    mock_ai(
+        operations=[
+            op("create_card", column_id="col-1", title="   ", details=""),
+            op("rename_column", column_id="col-1", title=""),
+            op("edit_card", card_id="card-1", title="", details="x"),
+        ]
+    )
+    before = board_of(client)
+    data = chat(client).json()
+    assert data["board"] is None
+    assert data["reply"].count("invalid title") == 3
+    assert board_of(client) == before
+
+
+def test_ai_titles_are_trimmed(client, mock_ai):
+    mock_ai(operations=[op("rename_column", column_id="col-1", title="  Tidy  ")])
+    assert chat(client).json()["board"]["columns"][0]["title"] == "Tidy"
+
+
+def test_missing_api_key_returns_502(client, monkeypatch):
+    monkeypatch.delenv("OPENROUTER_API_KEY", raising=False)
+    response = chat(client)
+    assert response.status_code == 502
+    assert "OPENROUTER_API_KEY" in response.json()["detail"]
+
+
+def test_client_has_a_timeout(monkeypatch):
+    monkeypatch.setenv("OPENROUTER_API_KEY", "test-key")
+    assert ai.get_client().timeout == ai.TIMEOUT_SECONDS
+
+
+def test_oversized_chat_requests_rejected(client):
+    assert chat(client, "x" * 4001).status_code == 422
+    history = [{"role": "user", "content": "hi"}] * (ai.MAX_HISTORY + 1)
+    assert chat(client, "hi", history).status_code == 422
+    assert chat(client, "hi", [{"role": "user", "content": "x" * 10001}]).status_code == 422

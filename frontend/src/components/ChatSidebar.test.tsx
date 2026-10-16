@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { ChatSidebar } from "@/components/ChatSidebar";
 import { KanbanBoard } from "@/components/KanbanBoard";
@@ -80,6 +80,21 @@ describe("ChatSidebar", () => {
     expect(onBoardUpdate).toHaveBeenCalledExactlyOnceWith(board);
   });
 
+  it("sends only the most recent messages as history", async () => {
+    mocked.chat.mockResolvedValue({ reply: "ok", board: null });
+    render(<ChatSidebar onBoardUpdate={() => {}} />);
+
+    for (let i = 0; i < 12; i++) {
+      await send(`message ${i}`);
+      await screen.findAllByText("ok");
+      await waitFor(() => expect(screen.getByRole("button", { name: "Send" })).toBeEnabled());
+    }
+
+    const history = mocked.chat.mock.calls[11][1];
+    expect(history).toHaveLength(20);
+    expect(history[0].content).toBe("message 1");
+  });
+
   it("collapses and expands", async () => {
     render(<ChatSidebar onBoardUpdate={() => {}} />);
     expect(screen.getByLabelText("Chat message")).toBeVisible();
@@ -104,5 +119,21 @@ describe("KanbanBoard with chat", () => {
 
     expect(await screen.findByDisplayValue("Renamed by AI")).toBeInTheDocument();
     expect(mocked.getBoard).toHaveBeenCalledOnce();
+  });
+
+  it("opens the card editor with the values the chat just set", async () => {
+    vi.resetAllMocks();
+    mocked.getBoard.mockImplementation(async () => structuredClone(initialData));
+    const changed = structuredClone(initialData);
+    changed.cards["card-1"].title = "AI renamed";
+    mocked.chat.mockResolvedValue({ reply: "Done", board: changed });
+
+    render(<KanbanBoard onLogout={() => {}} />);
+    await screen.findAllByTestId(/column-/i);
+    await send("Rename the first card");
+    await screen.findByText("AI renamed");
+    await userEvent.click(screen.getByRole("button", { name: /edit ai renamed/i }));
+
+    expect(screen.getByLabelText("Edit card title")).toHaveValue("AI renamed");
   });
 });

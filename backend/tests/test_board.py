@@ -1,7 +1,10 @@
+import asyncio
+import json
 import sqlite3
 
 from fastapi.testclient import TestClient
 
+from auth import sign
 from main import app
 
 
@@ -229,3 +232,59 @@ def test_cannot_modify_other_users_board(client, other_client):
 
     assert client.get("/api/board").json() == mine
     assert other_client.get("/api/board").json() == theirs
+
+
+# validation and robustness
+
+
+def test_changes_are_committed_before_the_response_is_sent(client, db_path):
+    """Call the app directly so we can look at the database when the response starts."""
+    seen = []
+
+    async def call():
+        body = json.dumps({"title": "Committed"}).encode()
+        headers = [
+            (b"content-type", b"application/json"),
+            (b"cookie", f"session={sign('user')}".encode()),
+        ]
+        scope = {
+            "type": "http", "asgi": {"version": "3.0"}, "http_version": "1.1",
+            "method": "PUT", "path": "/api/columns/col-1", "raw_path": b"/api/columns/col-1",
+            "query_string": b"", "headers": headers, "scheme": "http", "root_path": "",
+            "server": ("test", 80), "client": ("test", 1),
+        }
+
+        async def receive():
+            return {"type": "http.request", "body": body, "more_body": False}
+
+        async def send(message):
+            if message["type"] == "http.response.start":
+                conn = sqlite3.connect(db_path)
+                seen.append(conn.execute("SELECT title FROM columns WHERE id = 1").fetchone()[0])
+                conn.close()
+
+        await app(scope, receive, send)
+
+    asyncio.run(call())
+    assert seen == ["Committed"]
+
+
+def test_blank_titles_rejected(client):
+    assert client.put("/api/columns/col-1", json={"title": ""}).status_code == 422
+    assert client.put("/api/columns/col-1", json={"title": "   "}).status_code == 422
+    assert client.post("/api/cards", json={"column_id": "col-1", "title": "  "}).status_code == 422
+    assert client.put("/api/cards/card-1", json={"title": ""}).status_code == 422
+    assert titles(client.get("/api/board").json())[0] == "Backlog"
+
+
+def test_titles_are_trimmed_and_length_limited(client):
+    client.put("/api/columns/col-1", json={"title": "  Trimmed  "})
+    assert titles(client.get("/api/board").json())[0] == "Trimmed"
+    assert client.put("/api/columns/col-1", json={"title": "x" * 201}).status_code == 422
+    too_long = {"column_id": "col-1", "title": "ok", "details": "x" * 5001}
+    assert client.post("/api/cards", json=too_long).status_code == 422
+
+
+def test_non_ascii_digit_in_id_is_not_found(client):
+    assert client.delete("/api/cards/card-²").status_code == 404
+    assert client.put("/api/columns/col-٣", json={"title": "x"}).status_code == 404

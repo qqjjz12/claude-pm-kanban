@@ -123,7 +123,7 @@ def fetch_board(conn: sqlite3.Connection, board_id: int) -> dict:
 
 def parse_id(prefix: str, value: str) -> int:
     head, _, number = value.partition("-")
-    if head != prefix or not number.isdigit():
+    if head != prefix or not (number.isascii() and number.isdigit()):
         raise LookupError(value)
     return int(number)
 

@@ -23,6 +23,13 @@ export const KanbanCard = ({ card, onDelete, onEdit }: KanbanCardProps) => {
     transition,
   };
 
+  const handleEdit = () => {
+    // The card may have changed since the last edit (for example by the AI).
+    setTitle(card.title);
+    setDetails(card.details);
+    setIsEditing(true);
+  };
+
   const handleSave = () => {
     if (!title.trim()) {
       return;
@@ -95,7 +102,7 @@ export const KanbanCard = ({ card, onDelete, onEdit }: KanbanCardProps) => {
           <div className="flex flex-col items-end gap-1">
             <button
               type="button"
-              onClick={() => setIsEditing(true)}
+              onClick={handleEdit}
               className="rounded-full border border-transparent px-2 py-1 text-xs font-semibold text-[var(--primary-blue)] transition hover:border-[var(--stroke)]"
               aria-label={`Edit ${card.title}`}
             >

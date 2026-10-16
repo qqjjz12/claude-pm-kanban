@@ -69,21 +69,24 @@ test("an edited card persists across reload", async ({ page }) => {
 test("a renamed column persists across reload", async ({ page }) => {
   const original = await column(page, 1).getByLabel("Column title").inputValue();
   const renamed = uniqueTitle("Renamed");
-  const input = column(page, 1).getByLabel("Column title");
-  await input.fill(renamed);
-  await input.blur();
-  // Wait for the save before reloading.
-  await page.waitForResponse(
-    (r) => r.url().includes("/api/columns/") && r.request().method() === "PUT"
-  );
-  await page.reload();
-  await expect(column(page, 1).getByLabel("Column title")).toHaveValue(renamed);
+  const rename = async (title: string) => {
+    const input = column(page, 1).getByLabel("Column title");
+    const saved = page.waitForResponse(
+      (r) => r.url().includes("/api/columns/") && r.request().method() === "PUT"
+    );
+    await input.fill(title);
+    await input.blur();
+    await saved;
+  };
 
-  await column(page, 1).getByLabel("Column title").fill(original);
-  await column(page, 1).getByLabel("Column title").blur();
-  await page.waitForResponse(
-    (r) => r.url().includes("/api/columns/") && r.request().method() === "PUT"
-  );
+  try {
+    await rename(renamed);
+    await page.reload();
+    await expect(column(page, 1).getByLabel("Column title")).toHaveValue(renamed);
+  } finally {
+    // Always put the real board back, even if an assertion above failed.
+    await rename(original);
+  }
 });
 
 test("a moved card stays in its new column after reload", async ({ page }) => {

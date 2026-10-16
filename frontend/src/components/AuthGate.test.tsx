@@ -59,4 +59,24 @@ describe("AuthGate", () => {
       expect(screen.getByRole("heading", { name: "Sign in" })).toBeVisible()
     );
   });
+
+  it("shows the login form when the server cannot be reached", async () => {
+    vi.stubGlobal("fetch", vi.fn(() => Promise.reject(new TypeError("offline"))));
+    render(<AuthGate />);
+    expect(await screen.findByRole("heading", { name: "Sign in" })).toBeVisible();
+  });
+
+  it("shows an error when login cannot reach the server", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((url: string) =>
+        url === "/api/login" ? Promise.reject(new TypeError("offline")) : respond(false)
+      )
+    );
+    render(<AuthGate />);
+    await userEvent.type(await screen.findByLabelText("Username"), "user");
+    await userEvent.type(screen.getByLabelText("Password"), "password");
+    await userEvent.click(screen.getByRole("button", { name: "Sign in" }));
+    expect(await screen.findByRole("alert")).toBeVisible();
+  });
 });

@@ -5,12 +5,14 @@ from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException
 from openai import OpenAI, OpenAIError
-from pydantic import BaseModel, ValidationError
+from pydantic import BaseModel, Field, TypeAdapter, ValidationError
 
 import db
-from board import get_board_id, get_conn
+from board import Details, Title, get_board_id, get_conn
 
 MODEL = "openai/gpt-oss-120b"
+TIMEOUT_SECONDS = 60
+MAX_HISTORY = 20
 
 SYSTEM_PROMPT = """You are the assistant inside a Kanban project management app.
 You can answer questions about the board and change it for the user.
@@ -36,6 +38,9 @@ Current board:
 
 router = APIRouter(prefix="/api")
 
+TITLE = TypeAdapter(Title)
+DETAILS = TypeAdapter(Details)
+
 
 class Operation(BaseModel):
     type: Literal["create_card", "edit_card", "move_card", "delete_card", "rename_column"]
@@ -53,18 +58,23 @@ class AIResponse(BaseModel):
 
 class Message(BaseModel):
     role: Literal["user", "assistant"]
-    content: str
+    content: str = Field(max_length=10000)
 
 
 class ChatRequest(BaseModel):
-    message: str
-    history: list[Message] = []
+    message: str = Field(max_length=4000)
+    history: list[Message] = Field(default_factory=list, max_length=MAX_HISTORY)
 
 
 def get_client() -> OpenAI:
+    api_key = os.environ.get("OPENROUTER_API_KEY")
+    if not api_key:
+        raise ValueError("OPENROUTER_API_KEY is not set")
     return OpenAI(
         base_url="https://openrouter.ai/api/v1",
-        api_key=os.environ["OPENROUTER_API_KEY"],
+        api_key=api_key,
+        timeout=TIMEOUT_SECONDS,
+        max_retries=1,
     )
 
 
@@ -95,14 +105,27 @@ def need(op: Operation, *fields: str):
     return values
 
 
+def clean(adapter: TypeAdapter, value: str, name: str) -> str:
+    try:
+        return adapter.validate_python(value)
+    except ValidationError:
+        raise ValueError(f"invalid {name}")
+
+
 def apply_operation(conn: sqlite3.Connection, board_id: int, op: Operation) -> None:
     match op.type:
         case "create_card":
             column_id, title = need(op, "column_id", "title")
-            db.create_card(conn, board_id, column_id, title, op.details or "")
+            db.create_card(
+                conn, board_id, column_id,
+                clean(TITLE, title, "title"), clean(DETAILS, op.details or "", "details"),
+            )
         case "edit_card":
             card_id, title, details = need(op, "card_id", "title", "details")
-            db.update_card(conn, board_id, card_id, title, details)
+            db.update_card(
+                conn, board_id, card_id,
+                clean(TITLE, title, "title"), clean(DETAILS, details, "details"),
+            )
         case "move_card":
             card_id, column_id = need(op, "card_id", "column_id")
             db.move_card(conn, board_id, card_id, column_id, op.position if op.position is not None else 10**9)
@@ -111,14 +134,14 @@ def apply_operation(conn: sqlite3.Connection, board_id: int, op: Operation) -> N
             db.delete_card(conn, board_id, card_id)
         case "rename_column":
             column_id, title = need(op, "column_id", "title")
-            db.rename_column(conn, board_id, column_id, title)
+            db.rename_column(conn, board_id, column_id, clean(TITLE, title, "title"))
 
 
 @router.post("/chat")
 def chat(
     body: ChatRequest,
     board_id: int = Depends(get_board_id),
-    conn: sqlite3.Connection = Depends(get_conn),
+    conn: sqlite3.Connection = Depends(get_conn, scope="function"),
 ):
     board = db.fetch_board(conn, board_id)
     try:

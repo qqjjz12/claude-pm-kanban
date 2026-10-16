@@ -8,7 +8,7 @@
 | Frontend unit (Vitest) | `cd frontend && npm run test:unit` | jsdom; the API module or `fetch` is mocked |
 | End to end (Playwright) | `cd frontend && npm run test:e2e` | Needs the container running (`scripts/start`), at http://localhost:8000 |
 
-Counts: backend 48 passing plus 2 live tests skipped without the key, frontend unit 35, end to end 14.
+Counts: backend 57 passing plus 2 live tests skipped without the key, frontend unit 39, end to end 14.
 
 ## Backend (pytest) - `backend/tests/`
 
@@ -73,6 +73,15 @@ User isolation:
 | test_users_have_separate_boards | Two users get different boards with no shared ids |
 | test_cannot_modify_other_users_board | A second user gets 404 on every attempt to read or change the first user's columns and cards |
 
+Validation and robustness:
+
+| Test | What it checks |
+| --- | --- |
+| test_changes_are_committed_before_the_response_is_sent | Calls the app directly and reads the database when the response starts; the change is already committed |
+| test_blank_titles_rejected | Empty or whitespace-only column and card titles return 422 and change nothing |
+| test_titles_are_trimmed_and_length_limited | Titles are trimmed; titles over 200 and details over 5000 characters return 422 |
+| test_non_ascii_digit_in_id_is_not_found | Ids such as `card-²` return 404 instead of a server error |
+
 ### test_ai.py
 
 The model is mocked, so these run without the network.
@@ -104,6 +113,16 @@ Invalid operations:
 | test_unknown_ids_are_skipped_and_reported | Operations with unknown ids are skipped, valid ones still apply, and the reply says what could not be applied |
 | test_missing_fields_are_skipped | An operation missing a required field is skipped and reported, and nothing changes |
 | test_other_users_ids_are_rejected | Ids from another user's board cannot be changed through the AI |
+
+Validation and limits:
+
+| Test | What it checks |
+| --- | --- |
+| test_blank_title_operations_are_skipped_and_reported | Create, rename and edit operations with a blank title are skipped, reported, and change nothing |
+| test_ai_titles_are_trimmed | A title from the model is trimmed before saving |
+| test_missing_api_key_returns_502 | A missing `OPENROUTER_API_KEY` returns 502 with a clear message |
+| test_client_has_a_timeout | The OpenRouter client is built with the configured timeout |
+| test_oversized_chat_requests_rejected | A message over 4000 characters, more than 20 history messages, or a history message over 10000 characters returns 422 |
 
 Failures and validation:
 
@@ -157,6 +176,8 @@ Live (skipped when `OPENROUTER_API_KEY` is not set):
 | shows the board when already authenticated | A 200 from `/api/me` shows the board |
 | shows an error on bad credentials | A failed login shows an invalid credentials message |
 | logs in and logs out | Logging in shows the board, logging out returns to the form |
+| shows the login form when the server cannot be reached | A rejected `/api/me` request shows the Sign in form instead of a blank page |
+| shows an error when login cannot reach the server | A rejected login request shows the error message |
 
 ### components/KanbanBoard.test.tsx (`@/lib/api` mocked)
 
@@ -182,8 +203,10 @@ Live (skipped when `OPENROUTER_API_KEY` is not set):
 | ignores an empty message | A blank message does not call the API |
 | shows an error when the request fails | A failed request shows an error alert and keeps the user's message |
 | passes an updated board to the parent | A reply with a board calls `onBoardUpdate` with it |
+| sends only the most recent messages as history | After 12 exchanges, the request carries only the last 20 messages |
 | collapses and expands | The collapse and expand buttons hide and show the chat |
 | KanbanBoard with chat: refreshes the board when the chat returns one | In the full board, a chat reply with a changed board updates the columns without refetching |
+| KanbanBoard with chat: opens the card editor with the values the chat just set | After the chat renames a card, Edit shows the new title, not the old one |
 
 ## End to end (Playwright) - `frontend/tests/`
 
@@ -206,7 +229,7 @@ Run against the container with the real backend. Tests that change data create u
 | a new card persists across reload | An added card is still there after reload |
 | a deleted card stays deleted after reload | A removed card is gone after reload |
 | an edited card persists across reload | An edited title is kept after reload |
-| a renamed column persists across reload | A renamed column keeps its name after reload (then restored) |
+| a renamed column persists across reload | A renamed column keeps its name after reload; the original name is always restored, even if the test fails |
 | a moved card stays in its new column after reload | A card dragged to another column stays there after reload |
 | long unbroken text stays inside the card | A 200 character word without spaces wraps inside the card instead of overflowing |
 

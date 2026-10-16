@@ -8,6 +8,8 @@ type ChatSidebarProps = {
   onBoardUpdate: (board: BoardData) => void;
 };
 
+const MAX_HISTORY = 20;
+
 export const ChatSidebar = ({ onBoardUpdate }: ChatSidebarProps) => {
   const [open, setOpen] = useState(true);
   const [messages, setMessages] = useState<api.ChatMessage[]>([]);
@@ -30,7 +32,7 @@ export const ChatSidebar = ({ onBoardUpdate }: ChatSidebarProps) => {
     setError("");
     setLoading(true);
     try {
-      const { reply, board } = await api.chat(text, messages);
+      const { reply, board } = await api.chat(text, messages.slice(-MAX_HISTORY));
       setMessages([
         ...messages,
         { role: "user", content: text },
@@ -114,6 +116,7 @@ export const ChatSidebar = ({ onBoardUpdate }: ChatSidebarProps) => {
             value={input}
             onChange={(event) => setInput(event.target.value)}
             aria-label="Chat message"
+            maxLength={4000}
             placeholder="Message the assistant"
             className="min-w-0 flex-1 rounded-full border border-[var(--stroke)] px-4 py-2 text-sm text-[var(--navy-dark)] outline-none focus:border-[var(--primary-blue)]"
           />

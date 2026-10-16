@@ -1,17 +1,23 @@
+import hashlib
+import hmac
 import os
+import re
+import secrets
 import sqlite3
 from pathlib import Path
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS users (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    username TEXT NOT NULL UNIQUE
+    username TEXT NOT NULL UNIQUE,
+    password_hash TEXT
 );
 CREATE TABLE IF NOT EXISTS boards (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    user_id INTEGER NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     name TEXT NOT NULL DEFAULT 'My Board'
 );
+CREATE INDEX IF NOT EXISTS idx_boards_user ON boards(user_id);
 CREATE TABLE IF NOT EXISTS columns (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     board_id INTEGER NOT NULL REFERENCES boards(id) ON DELETE CASCADE,
@@ -50,6 +56,16 @@ DEFAULT_BOARD = [
     ]),
 ]
 
+TEMPLATES = {
+    "standard": [("To Do", []), ("In Progress", []), ("Done", [])],
+    "sample": DEFAULT_BOARD,
+    "empty": [],
+}
+
+DEMO_USER = "user"
+DEMO_PASSWORD = "password"
+USERNAME_RE = re.compile(r"^[A-Za-z0-9_.-]{3,32}$")
+
 
 def connect() -> sqlite3.Connection:
     path = Path(os.environ.get("PM_DB_PATH", "pm.db"))
@@ -62,29 +78,107 @@ def connect() -> sqlite3.Connection:
     return conn
 
 
+def get_conn():
+    """FastAPI dependency: one connection per request, committed on success."""
+    conn = connect()
+    try:
+        yield conn
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+
+
+def _scrypt(password: str, salt: bytes) -> bytes:
+    return hashlib.scrypt(password.encode(), salt=salt, n=2**14, r=8, p=1)
+
+
+def hash_password(password: str) -> str:
+    salt = secrets.token_bytes(16)
+    return f"scrypt${salt.hex()}${_scrypt(password, salt).hex()}"
+
+
+def verify_password(password: str, stored: str | None) -> bool:
+    if not stored:
+        return False
+    try:
+        scheme, salt, digest = stored.split("$")
+        actual = _scrypt(password, bytes.fromhex(salt))
+    except ValueError:
+        return False
+    return scheme == "scrypt" and hmac.compare_digest(actual.hex(), digest)
+
+
+def _migrate(conn: sqlite3.Connection) -> None:
+    """Upgrade databases created before accounts and multiple boards existed."""
+    if "password_hash" not in {r["name"] for r in conn.execute("PRAGMA table_info(users)")}:
+        conn.execute("ALTER TABLE users ADD COLUMN password_hash TEXT")
+    # boards.user_id used to be UNIQUE (one board per user); SQLite cannot drop that, so rebuild.
+    if any(r["unique"] for r in conn.execute("PRAGMA index_list(boards)")):
+        conn.executescript(
+            "PRAGMA foreign_keys = OFF;"
+            "CREATE TABLE boards_new (id INTEGER PRIMARY KEY AUTOINCREMENT,"
+            " user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,"
+            " name TEXT NOT NULL DEFAULT 'My Board');"
+            "INSERT INTO boards_new (id, user_id, name) SELECT id, user_id, name FROM boards;"
+            "DROP TABLE boards;"
+            "ALTER TABLE boards_new RENAME TO boards;"
+            "CREATE INDEX IF NOT EXISTS idx_boards_user ON boards(user_id);"
+            "PRAGMA foreign_keys = ON;"
+        )
+
+
 def init_db() -> None:
     conn = connect()
     conn.executescript(SCHEMA)
+    _migrate(conn)
+    # The demo account keeps working; its password can be changed like any other.
+    user_id = create_user(conn, DEMO_USER, DEMO_PASSWORD, exist_ok=True)
+    row = conn.execute("SELECT password_hash FROM users WHERE id = ?", (user_id,)).fetchone()
+    if not row["password_hash"]:
+        set_password(conn, user_id, DEMO_PASSWORD)
+    conn.commit()
     conn.close()
 
 
-def ensure_board(conn: sqlite3.Connection, username: str) -> int:
-    """Return the user's board id, creating the user and a seeded board if needed."""
-    row = conn.execute(
-        "SELECT boards.id FROM boards JOIN users ON users.id = boards.user_id "
-        "WHERE users.username = ?",
+def find_user(conn: sqlite3.Connection, username: str) -> sqlite3.Row | None:
+    return conn.execute(
+        "SELECT id, username, password_hash FROM users WHERE username = ? COLLATE NOCASE",
         (username,),
     ).fetchone()
-    if row:
-        return row["id"]
-    conn.execute("INSERT OR IGNORE INTO users (username) VALUES (?)", (username,))
+
+
+def create_user(
+    conn: sqlite3.Connection, username: str, password: str | None, exist_ok: bool = False
+) -> int:
+    """Create an account and return its id. Usernames are unique ignoring case."""
+    existing = find_user(conn, username)
+    if existing:
+        if exist_ok:
+            return existing["id"]
+        raise ValueError("Username is already taken")
     user_id = conn.execute(
-        "SELECT id FROM users WHERE username = ?", (username,)
-    ).fetchone()["id"]
-    board_id = conn.execute(
-        "INSERT INTO boards (user_id) VALUES (?)", (user_id,)
+        "INSERT INTO users (username, password_hash) VALUES (?, ?)",
+        (username, hash_password(password) if password else None),
     ).lastrowid
-    for col_pos, (title, cards) in enumerate(DEFAULT_BOARD):
+    create_board(conn, user_id, "My Board", "sample")
+    return user_id
+
+
+def set_password(conn: sqlite3.Connection, user_id: int, password: str) -> None:
+    conn.execute(
+        "UPDATE users SET password_hash = ? WHERE id = ?", (hash_password(password), user_id)
+    )
+
+
+def delete_user(conn: sqlite3.Connection, user_id: int) -> None:
+    conn.execute("DELETE FROM users WHERE id = ?", (user_id,))
+
+
+def _add_columns(conn: sqlite3.Connection, board_id: int, layout) -> None:
+    for col_pos, (title, cards) in enumerate(layout):
         column_id = conn.execute(
             "INSERT INTO columns (board_id, title, position) VALUES (?, ?, ?)",
             (board_id, title, col_pos),
@@ -95,7 +189,58 @@ def ensure_board(conn: sqlite3.Connection, username: str) -> int:
                 "VALUES (?, ?, ?, ?)",
                 (column_id, card_title, details, card_pos),
             )
+
+
+def create_board(
+    conn: sqlite3.Connection, user_id: int, name: str, template: str = "standard"
+) -> int:
+    if template not in TEMPLATES:
+        raise ValueError(f"Unknown template: {template}")
+    board_id = conn.execute(
+        "INSERT INTO boards (user_id, name) VALUES (?, ?)", (user_id, name)
+    ).lastrowid
+    _add_columns(conn, board_id, TEMPLATES[template])
     return board_id
+
+
+def list_boards(conn: sqlite3.Connection, user_id: int) -> list[dict]:
+    return [
+        {"id": r["id"], "name": r["name"]}
+        for r in conn.execute(
+            "SELECT id, name FROM boards WHERE user_id = ? ORDER BY id", (user_id,)
+        )
+    ]
+
+
+def ensure_board(conn: sqlite3.Connection, username: str, board_id: int | None = None) -> int:
+    """Return the id of one of the user's boards.
+
+    Without board_id this is the user's first board. A board that does not exist or belongs
+    to someone else raises LookupError.
+    """
+    user = find_user(conn, username)
+    if not user:
+        raise LookupError(username)
+    user_id = user["id"]
+    if board_id is not None:
+        row = conn.execute(
+            "SELECT id FROM boards WHERE id = ? AND user_id = ?", (board_id, user_id)
+        ).fetchone()
+        if not row:
+            raise LookupError(f"board-{board_id}")
+        return row["id"]
+    boards = list_boards(conn, user_id)
+    return boards[0]["id"] if boards else create_board(conn, user_id, "My Board", "sample")
+
+
+def rename_board(conn: sqlite3.Connection, board_id: int, name: str) -> None:
+    conn.execute("UPDATE boards SET name = ? WHERE id = ?", (name, board_id))
+
+
+def delete_board(conn: sqlite3.Connection, user_id: int, board_id: int) -> None:
+    if len(list_boards(conn, user_id)) <= 1:
+        raise ValueError("You cannot delete your only board")
+    conn.execute("DELETE FROM boards WHERE id = ?", (board_id,))
 
 
 def fetch_board(conn: sqlite3.Connection, board_id: int) -> dict:
@@ -171,6 +316,42 @@ def _set_order(conn: sqlite3.Connection, column_id: int, card_ids: list[int]) ->
 def rename_column(conn: sqlite3.Connection, board_id: int, column_id: str, title: str) -> None:
     pk = _require_column(conn, board_id, column_id)
     conn.execute("UPDATE columns SET title = ? WHERE id = ?", (title, pk))
+
+
+def _column_ids(conn: sqlite3.Connection, board_id: int) -> list[int]:
+    return [
+        r["id"]
+        for r in conn.execute(
+            "SELECT id FROM columns WHERE board_id = ? ORDER BY position", (board_id,)
+        )
+    ]
+
+
+def _set_column_order(conn: sqlite3.Connection, ids: list[int]) -> None:
+    for position, pk in enumerate(ids):
+        conn.execute("UPDATE columns SET position = ? WHERE id = ?", (position, pk))
+
+
+def create_column(conn: sqlite3.Connection, board_id: int, title: str) -> dict:
+    position = len(_column_ids(conn, board_id))
+    pk = conn.execute(
+        "INSERT INTO columns (board_id, title, position) VALUES (?, ?, ?)",
+        (board_id, title, position),
+    ).lastrowid
+    return {"id": f"col-{pk}", "title": title, "cardIds": []}
+
+
+def delete_column(conn: sqlite3.Connection, board_id: int, column_id: str) -> None:
+    pk = _require_column(conn, board_id, column_id)
+    conn.execute("DELETE FROM columns WHERE id = ?", (pk,))
+    _set_column_order(conn, _column_ids(conn, board_id))
+
+
+def move_column(conn: sqlite3.Connection, board_id: int, column_id: str, position: int) -> None:
+    pk = _require_column(conn, board_id, column_id)
+    ids = [c for c in _column_ids(conn, board_id) if c != pk]
+    ids.insert(max(0, min(position, len(ids))), pk)
+    _set_column_order(conn, ids)
 
 
 def create_card(

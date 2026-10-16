@@ -8,7 +8,7 @@
 | Frontend unit (Vitest) | `cd frontend && npm run test:unit` | jsdom; the API module or `fetch` is mocked |
 | End to end (Playwright) | `cd frontend && npm run test:e2e` | Needs the container running (`scripts/start`), at http://localhost:8000 |
 
-Counts: backend 57 passing plus 2 live tests skipped without the key, frontend unit 39, end to end 14.
+Counts: backend 103 passing plus 2 live tests skipped without the key, frontend unit 39, end to end 14.
 
 ## Backend (pytest) - `backend/tests/`
 
@@ -22,14 +22,53 @@ Counts: backend 57 passing plus 2 live tests skipped without the key, frontend u
 
 | Test | What it checks |
 | --- | --- |
-| test_login_success_sets_cookie | Logging in as `user` / `password` returns 200 and sets the session cookie |
-| test_login_wrong_password | A wrong password returns 401 |
-| test_login_wrong_username | An unknown username returns 401 |
-| test_me_without_cookie | `GET /api/me` without a cookie returns 401 |
-| test_me_with_cookie | `GET /api/me` with a valid cookie returns 200 and the username |
-| test_logout_clears_session | Logging out clears the cookie, so `/api/me` returns 401 again |
-| test_tampered_cookie_rejected | A cookie with a made-up signature is rejected |
-| test_cookie_for_other_user_without_valid_signature_rejected | Reusing a valid signature with a different username is rejected |
+| test_login_success_sets_cookie | Logging in as the demo user returns 200 and sets an httpOnly session cookie |
+| test_login_wrong_password / test_login_unknown_user | Bad credentials return 401 and no cookie |
+| test_login_username_is_case_insensitive_and_session_uses_stored_name | `USER` logs in as `user` |
+| test_me_without_cookie / test_me_with_cookie / test_logout_clears_session | Session lifecycle |
+| test_tampered_cookie_rejected / test_signature_of_one_user_does_not_work_for_another | Cookie signing |
+| test_valid_signature_for_unknown_user_rejected | A correctly signed cookie for a nonexistent user is 401 |
+| test_every_data_route_requires_login | All data routes return 401 anonymously |
+| test_register_creates_account_and_signs_in / test_register_then_login_from_new_client | Registration works and the account can log in |
+| test_register_duplicate_username_ignoring_case / test_register_validates_input / test_register_trims_username | Username and password rules |
+| test_passwords_are_hashed_not_stored / test_same_password_gets_different_hashes / test_verify_password_handles_garbage | scrypt hashing with salt; malformed hashes never verify |
+| test_change_password (3 tests) | Change works, needs the current password, enforces the minimum length |
+| test_delete_account_* / test_deleted_users_stale_cookie_does_not_recreate_account | Account deletion needs the password, removes boards, and invalidates the old cookie |
+
+### test_boards.py
+
+| Test | What it checks |
+| --- | --- |
+| test_new_account_lists_one_sample_board / test_list_boards_in_creation_order | Board listing |
+| test_create_board_defaults_to_standard_template / test_create_board_templates / test_create_board_rejects_bad_input | Templates (`standard`, `sample`, `empty`) and validation |
+| test_board_without_param_is_first_board / test_changes_apply_to_the_selected_board_only / test_card_from_another_board_is_not_found_via_this_board | `?board=` selects the board; cards cannot cross boards |
+| test_rename_board / test_delete_board / test_delete_board_removes_its_columns_and_cards / test_cannot_delete_only_board | Board rename and delete rules |
+| test_unknown_board_is_404 / test_other_users_boards_are_invisible_and_untouchable | Ownership checks |
+| test_chat_targets_selected_board | The AI sees the selected board |
+
+### test_columns.py
+
+| Test | What it checks |
+| --- | --- |
+| test_create_column_* / test_new_column_accepts_cards | Add a column, validation, cards can be added to it |
+| test_delete_column_removes_cards_and_keeps_order_contiguous / test_delete_unknown_column_is_404 | Delete cascades and positions stay contiguous |
+| test_move_column* | Reorder, clamping, cards preserved |
+| test_cannot_touch_other_users_columns | Ownership |
+
+### test_migration.py
+
+| Test | What it checks |
+| --- | --- |
+| test_old_database_is_upgraded_in_place | A pre-accounts database keeps its data, gains password support and allows several boards per user |
+| test_init_db_is_idempotent_and_keeps_changed_demo_password | Restarting does not reset a changed demo password |
+
+### test_integration.py
+
+| Test | What it checks |
+| --- | --- |
+| test_full_user_journey | Register, create board, cards, columns, move, logout/login, change password |
+| test_two_users_never_see_each_other | Cross-account isolation including chat |
+| test_deleting_an_account_does_not_affect_others | Account deletion is scoped |
 
 ### test_board.py
 

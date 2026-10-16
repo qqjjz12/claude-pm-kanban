@@ -113,6 +113,30 @@ export const moveCard = (cardId: string, columnId: string, position: number) =>
     position,
   });
 
+export type Comment = { id: number; author: string; body: string; createdAt: string };
+export type ChecklistItem = { id: number; text: string; done: boolean };
+export type CardDetail = { comments: Comment[]; checklist: ChecklistItem[] };
+
+export const getCardDetail = (cardId: string): Promise<CardDetail> =>
+  request("GET", scoped(`/api/cards/${cardId}/detail`));
+
+export const addComment = (cardId: string, body: string): Promise<CardDetail> =>
+  request("POST", scoped(`/api/cards/${cardId}/comments`), { body });
+
+export const deleteComment = (commentId: number): Promise<CardDetail> =>
+  request("DELETE", scoped(`/api/comments/${commentId}`));
+
+export const addChecklistItem = (cardId: string, text: string): Promise<CardDetail> =>
+  request("POST", scoped(`/api/cards/${cardId}/checklist`), { text });
+
+export const updateChecklistItem = (
+  itemId: number,
+  changes: { text?: string; done?: boolean }
+): Promise<CardDetail> => request("PUT", scoped(`/api/checklist/${itemId}`), changes);
+
+export const deleteChecklistItem = (itemId: number): Promise<CardDetail> =>
+  request("DELETE", scoped(`/api/checklist/${itemId}`));
+
 export type ChatMessage = { role: "user" | "assistant"; content: string };
 
 export const chat = (

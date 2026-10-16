@@ -37,6 +37,22 @@ CREATE TABLE IF NOT EXISTS cards (
     labels TEXT NOT NULL DEFAULT '[]'
 );
 CREATE INDEX IF NOT EXISTS idx_cards_column ON cards(column_id, position);
+CREATE TABLE IF NOT EXISTS comments (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    card_id INTEGER NOT NULL REFERENCES cards(id) ON DELETE CASCADE,
+    author TEXT NOT NULL,
+    body TEXT NOT NULL,
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_comments_card ON comments(card_id, id);
+CREATE TABLE IF NOT EXISTS checklist_items (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    card_id INTEGER NOT NULL REFERENCES cards(id) ON DELETE CASCADE,
+    text TEXT NOT NULL,
+    done INTEGER NOT NULL DEFAULT 0,
+    position INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_checklist_card ON checklist_items(card_id, position);
 """
 
 DEFAULT_BOARD = [
@@ -265,7 +281,18 @@ def _card_dict(row: sqlite3.Row) -> dict:
         "priority": row["priority"],
         "dueDate": row["due_date"],
         "labels": json.loads(row["labels"]),
+        "commentCount": row["comment_count"],
+        "checklist": {"done": row["check_done"], "total": row["check_total"]},
     }
+
+
+CARD_SELECT = (
+    "SELECT cards.*, "
+    "(SELECT COUNT(*) FROM comments WHERE card_id = cards.id) AS comment_count, "
+    "(SELECT COUNT(*) FROM checklist_items WHERE card_id = cards.id) AS check_total, "
+    "(SELECT COUNT(*) FROM checklist_items WHERE card_id = cards.id AND done = 1) AS check_done "
+    "FROM cards"
+)
 
 
 def fetch_board(conn: sqlite3.Connection, board_id: int) -> dict:
@@ -277,7 +304,7 @@ def fetch_board(conn: sqlite3.Connection, board_id: int) -> dict:
     ):
         card_ids = []
         for card in conn.execute(
-            "SELECT * FROM cards WHERE column_id = ? ORDER BY position",
+            CARD_SELECT + " WHERE column_id = ? ORDER BY position",
             (col["id"],),
         ):
             data = _card_dict(card)
@@ -392,7 +419,7 @@ def create_card(
         "VALUES (?, ?, ?, ?, ?, ?, ?)",
         (col_pk, title, details, position, priority, due_date or None, json.dumps(labels or [])),
     ).lastrowid
-    return _card_dict(conn.execute("SELECT * FROM cards WHERE id = ?", (pk,)).fetchone())
+    return _card_dict(conn.execute(CARD_SELECT + " WHERE cards.id = ?", (pk,)).fetchone())
 
 
 def update_card(
@@ -435,3 +462,100 @@ def move_card(
     ids = [p for p in _card_ids(conn, target) if p != card["id"]]
     ids.insert(max(0, min(position, len(ids))), card["id"])
     _set_order(conn, target, ids)
+
+
+def _comment_dict(row: sqlite3.Row) -> dict:
+    return {
+        "id": row["id"],
+        "author": row["author"],
+        "body": row["body"],
+        "createdAt": row["created_at"],
+    }
+
+
+def card_detail(conn: sqlite3.Connection, board_id: int, card_id: str) -> dict:
+    card = _require_card(conn, board_id, card_id)
+    comments = conn.execute(
+        "SELECT id, author, body, created_at FROM comments WHERE card_id = ? ORDER BY id",
+        (card["id"],),
+    )
+    checklist = conn.execute(
+        "SELECT id, text, done FROM checklist_items WHERE card_id = ? ORDER BY position",
+        (card["id"],),
+    )
+    return {
+        "comments": [_comment_dict(r) for r in comments],
+        "checklist": [
+            {"id": r["id"], "text": r["text"], "done": bool(r["done"])} for r in checklist
+        ],
+    }
+
+
+def _require_child(conn: sqlite3.Connection, board_id: int, table: str, pk: int) -> int:
+    """Return the card pk that owns comment/checklist row `pk`, if it is on this board."""
+    row = conn.execute(
+        f"SELECT item.card_id FROM {table} AS item "
+        "JOIN cards ON cards.id = item.card_id "
+        "JOIN columns ON columns.id = cards.column_id "
+        "WHERE item.id = ? AND columns.board_id = ?",
+        (pk, board_id),
+    ).fetchone()
+    if not row:
+        raise LookupError(f"{table}-{pk}")
+    return row["card_id"]
+
+
+def add_comment(
+    conn: sqlite3.Connection, board_id: int, card_id: str, author: str, body: str
+) -> str:
+    card = _require_card(conn, board_id, card_id)
+    conn.execute(
+        "INSERT INTO comments (card_id, author, body) VALUES (?, ?, ?)",
+        (card["id"], author, body),
+    )
+    return card_id
+
+
+def delete_comment(conn: sqlite3.Connection, board_id: int, comment_id: int) -> str:
+    card_pk = _require_child(conn, board_id, "comments", comment_id)
+    conn.execute("DELETE FROM comments WHERE id = ?", (comment_id,))
+    return f"card-{card_pk}"
+
+
+def add_checklist_item(conn: sqlite3.Connection, board_id: int, card_id: str, text: str) -> str:
+    card = _require_card(conn, board_id, card_id)
+    position = conn.execute(
+        "SELECT COUNT(*) FROM checklist_items WHERE card_id = ?", (card["id"],)
+    ).fetchone()[0]
+    conn.execute(
+        "INSERT INTO checklist_items (card_id, text, position) VALUES (?, ?, ?)",
+        (card["id"], text, position),
+    )
+    return card_id
+
+
+def update_checklist_item(
+    conn: sqlite3.Connection,
+    board_id: int,
+    item_id: int,
+    text: str | None = None,
+    done: bool | None = None,
+) -> str:
+    card_pk = _require_child(conn, board_id, "checklist_items", item_id)
+    if text is not None:
+        conn.execute("UPDATE checklist_items SET text = ? WHERE id = ?", (text, item_id))
+    if done is not None:
+        conn.execute("UPDATE checklist_items SET done = ? WHERE id = ?", (int(done), item_id))
+    return f"card-{card_pk}"
+
+
+def delete_checklist_item(conn: sqlite3.Connection, board_id: int, item_id: int) -> str:
+    card_pk = _require_child(conn, board_id, "checklist_items", item_id)
+    conn.execute("DELETE FROM checklist_items WHERE id = ?", (item_id,))
+    for position, row in enumerate(
+        conn.execute(
+            "SELECT id FROM checklist_items WHERE card_id = ? ORDER BY position", (card_pk,)
+        ).fetchall()
+    ):
+        conn.execute("UPDATE checklist_items SET position = ? WHERE id = ?", (position, row["id"]))
+    return f"card-{card_pk}"

@@ -8,10 +8,14 @@ export type CardFields = {
   labels: string[];
 };
 
+export type ChecklistSummary = { done: number; total: number };
+
 export type Card = CardFields & {
   id: string;
   title: string;
   details: string;
+  commentCount: number;
+  checklist: ChecklistSummary;
 };
 
 export const NO_FIELDS: CardFields = { priority: "none", dueDate: null, labels: [] };

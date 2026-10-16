@@ -114,6 +114,8 @@ def test_edit_card(client, mock_ai):
         "priority": "none",
         "dueDate": None,
         "labels": [],
+        "commentCount": 0,
+        "checklist": {"done": 0, "total": 0},
     }
 
 

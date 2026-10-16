@@ -16,6 +16,7 @@ import { KanbanColumn } from "@/components/KanbanColumn";
 import { KanbanCardPreview } from "@/components/KanbanCardPreview";
 import { NewColumnForm } from "@/components/NewColumnForm";
 import * as api from "@/lib/api";
+import { CardDetailModal } from "@/components/CardDetailModal";
 import { FilterBar } from "@/components/FilterBar";
 import {
   EMPTY_FILTERS,
@@ -39,6 +40,7 @@ export const KanbanBoard = ({ boardId, header, notice }: KanbanBoardProps) => {
   const [board, setBoard] = useState<BoardData | null>(null);
   const [activeCardId, setActiveCardId] = useState<string | null>(null);
   const [error, setError] = useState("");
+  const [detailCardId, setDetailCardId] = useState<string | null>(null);
   const [filters, setFilters] = useState<Filters>(EMPTY_FILTERS);
 
   const sensors = useSensors(
@@ -141,6 +143,21 @@ export const KanbanBoard = ({ boardId, header, notice }: KanbanBoardProps) => {
     persist(() => api.renameColumn(columnId, title));
   };
 
+  const handleSummary = (
+    cardId: string,
+    commentCount: number,
+    checklist: { done: number; total: number }
+  ) => {
+    setBoard((prev) =>
+      prev && prev.cards[cardId]
+        ? {
+            ...prev,
+            cards: { ...prev.cards, [cardId]: { ...prev.cards[cardId], commentCount, checklist } },
+          }
+        : prev
+    );
+  };
+
   const handleAddColumn = (title: string) => {
     persist(async () => {
       const column = await api.createColumn(title);
@@ -190,7 +207,7 @@ export const KanbanBoard = ({ boardId, header, notice }: KanbanBoardProps) => {
   ) => {
     setBoard({
       ...board,
-      cards: { ...board.cards, [cardId]: { id: cardId, title, details, ...fields } },
+      cards: { ...board.cards, [cardId]: { ...board.cards[cardId], title, details, ...fields } },
     });
     persist(() => api.updateCard(cardId, title, details, fields));
   };
@@ -266,6 +283,7 @@ export const KanbanBoard = ({ boardId, header, notice }: KanbanBoardProps) => {
                 onAddCard={handleAddCard}
                 onDeleteCard={handleDeleteCard}
                 onEditCard={handleEditCard}
+                onOpenCard={setDetailCardId}
               />
             ))}
             <NewColumnForm onAdd={handleAddColumn} />
@@ -280,6 +298,13 @@ export const KanbanBoard = ({ boardId, header, notice }: KanbanBoardProps) => {
         </DndContext>
       </main>
     </div>
+    {detailCardId && board.cards[detailCardId] && (
+      <CardDetailModal
+        card={board.cards[detailCardId]}
+        onClose={() => setDetailCardId(null)}
+        onSummary={handleSummary}
+      />
+    )}
     <ChatSidebar onBoardUpdate={setBoard} />
     </div>
   );

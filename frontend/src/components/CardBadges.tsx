@@ -19,7 +19,14 @@ const chip = "rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase track
 
 export const CardBadges = ({ card }: { card: Card }) => {
   const overdue = isOverdue(card.dueDate);
-  if (card.priority === "none" && !card.dueDate && card.labels.length === 0) {
+  const { done, total } = card.checklist;
+  if (
+    card.priority === "none" &&
+    !card.dueDate &&
+    card.labels.length === 0 &&
+    total === 0 &&
+    card.commentCount === 0
+  ) {
     return null;
   }
   return (
@@ -38,6 +45,19 @@ export const CardBadges = ({ card }: { card: Card }) => {
         >
           {overdue ? "Overdue " : "Due "}
           {formatDueDate(card.dueDate)}
+        </span>
+      )}
+      {total > 0 && (
+        <span
+          className={clsx(chip, "normal-case tracking-normal", done === total ? "bg-green-100 text-green-800" : "bg-gray-100 text-[var(--gray-text)]")}
+          title="Checklist progress"
+        >
+          {`Checklist ${done}/${total}`}
+        </span>
+      )}
+      {card.commentCount > 0 && (
+        <span className={clsx(chip, "bg-gray-100 normal-case tracking-normal text-[var(--gray-text)]")} title="Comments">
+          {card.commentCount === 1 ? "1 comment" : `${card.commentCount} comments`}
         </span>
       )}
       {card.labels.map((label) => (

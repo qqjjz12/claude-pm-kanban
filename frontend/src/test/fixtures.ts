@@ -19,6 +19,8 @@ export const initialData: BoardData = {
       priority: "none",
       dueDate: null,
       labels: [],
+      commentCount: 0,
+      checklist: { done: 0, total: 0 },
       details: "Draft quarterly themes with impact statements and metrics.",
     },
     "card-2": {
@@ -27,6 +29,8 @@ export const initialData: BoardData = {
       priority: "none",
       dueDate: null,
       labels: [],
+      commentCount: 0,
+      checklist: { done: 0, total: 0 },
       details: "Review support tags, sales notes, and churn feedback.",
     },
     "card-3": {
@@ -35,6 +39,8 @@ export const initialData: BoardData = {
       priority: "none",
       dueDate: null,
       labels: [],
+      commentCount: 0,
+      checklist: { done: 0, total: 0 },
       details: "Sketch initial dashboard layout and key drill-downs.",
     },
     "card-4": {
@@ -43,6 +49,8 @@ export const initialData: BoardData = {
       priority: "none",
       dueDate: null,
       labels: [],
+      commentCount: 0,
+      checklist: { done: 0, total: 0 },
       details: "Standardize column labels and tone across the board.",
     },
     "card-5": {
@@ -51,6 +59,8 @@ export const initialData: BoardData = {
       priority: "none",
       dueDate: null,
       labels: [],
+      commentCount: 0,
+      checklist: { done: 0, total: 0 },
       details: "Add hierarchy and spacing for scanning dense lists.",
     },
     "card-6": {
@@ -59,6 +69,8 @@ export const initialData: BoardData = {
       priority: "none",
       dueDate: null,
       labels: [],
+      commentCount: 0,
+      checklist: { done: 0, total: 0 },
       details: "Verify hover, focus, and loading states.",
     },
     "card-7": {
@@ -67,6 +79,8 @@ export const initialData: BoardData = {
       priority: "none",
       dueDate: null,
       labels: [],
+      commentCount: 0,
+      checklist: { done: 0, total: 0 },
       details: "Final copy approved and asset pack delivered.",
     },
     "card-8": {
@@ -75,6 +89,8 @@ export const initialData: BoardData = {
       priority: "none",
       dueDate: null,
       labels: [],
+      commentCount: 0,
+      checklist: { done: 0, total: 0 },
       details: "Document release notes and share internally.",
     },
   },

@@ -30,6 +30,8 @@ describe("KanbanBoard", () => {
       priority: "none",
       dueDate: null,
       labels: [],
+      commentCount: 0,
+      checklist: { done: 0, total: 0 },
     });
   });
 
@@ -315,6 +317,42 @@ describe("KanbanBoard", () => {
       );
       await userEvent.click(screen.getByRole("button", { name: "Save" }));
       expect(mocked.updateCard).toHaveBeenCalledOnce();
+    });
+  });
+
+  describe("card details", () => {
+    it("opens the details dialog for a card and updates its badges", async () => {
+      mocked.getCardDetail.mockResolvedValue({ comments: [], checklist: [] });
+      mocked.addComment.mockResolvedValue({
+        comments: [{ id: 1, author: "u", body: "hi", createdAt: "2030-01-01 00:00:00" }],
+        checklist: [],
+      });
+      await renderBoard();
+      const card = within(getFirstColumn()).getByTestId("card-card-1");
+      await userEvent.click(
+        within(card).getByRole("button", { name: "Details for Align roadmap themes" })
+      );
+      expect(await screen.findByRole("dialog", { name: "Card details" })).toBeVisible();
+      await userEvent.type(screen.getByLabelText("New comment"), "hi");
+      await userEvent.click(screen.getByRole("button", { name: "Add comment" }));
+      await screen.findByText("hi");
+      await userEvent.click(screen.getByRole("button", { name: "Close details" }));
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+      expect(within(card).getByText("1 comment")).toBeVisible();
+    });
+
+    it("shows checklist and comment badges from the board", async () => {
+      const data = structuredClone(initialData);
+      data.cards["card-1"] = {
+        ...data.cards["card-1"],
+        commentCount: 3,
+        checklist: { done: 1, total: 2 },
+      };
+      mocked.getBoard.mockResolvedValue(data);
+      await renderBoard();
+      const card = within(getFirstColumn()).getByTestId("card-card-1");
+      expect(within(card).getByText("Checklist 1/2")).toBeVisible();
+      expect(within(card).getByText("3 comments")).toBeVisible();
     });
   });
 });

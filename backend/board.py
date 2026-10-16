@@ -225,3 +225,73 @@ def move_card(
 ):
     db.move_card(conn, board_id, card_id, body.column_id, body.position)
     return db.fetch_board(conn, board_id)
+
+
+class CommentCreate(BaseModel):
+    body: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=2000)]
+
+
+class ChecklistCreate(BaseModel):
+    text: Title
+
+
+class ChecklistUpdate(BaseModel):
+    text: Title | None = None
+    done: bool | None = None
+
+
+@router.get("/cards/{card_id}/detail")
+def card_detail(
+    card_id: str, board_id: int = Depends(get_board_id), conn=Depends(get_conn, scope="function")
+):
+    return db.card_detail(conn, board_id, card_id)
+
+
+@router.post("/cards/{card_id}/comments", status_code=201)
+def add_comment(
+    card_id: str,
+    body: CommentCreate,
+    username: str = Depends(current_user),
+    board_id: int = Depends(get_board_id),
+    conn=Depends(get_conn, scope="function"),
+):
+    db.add_comment(conn, board_id, card_id, username, body.body)
+    return db.card_detail(conn, board_id, card_id)
+
+
+@router.delete("/comments/{comment_id}")
+def delete_comment(
+    comment_id: int, board_id: int = Depends(get_board_id), conn=Depends(get_conn, scope="function")
+):
+    card_id = db.delete_comment(conn, board_id, comment_id)
+    return db.card_detail(conn, board_id, card_id)
+
+
+@router.post("/cards/{card_id}/checklist", status_code=201)
+def add_checklist_item(
+    card_id: str,
+    body: ChecklistCreate,
+    board_id: int = Depends(get_board_id),
+    conn=Depends(get_conn, scope="function"),
+):
+    db.add_checklist_item(conn, board_id, card_id, body.text)
+    return db.card_detail(conn, board_id, card_id)
+
+
+@router.put("/checklist/{item_id}")
+def update_checklist_item(
+    item_id: int,
+    body: ChecklistUpdate,
+    board_id: int = Depends(get_board_id),
+    conn=Depends(get_conn, scope="function"),
+):
+    card_id = db.update_checklist_item(conn, board_id, item_id, body.text, body.done)
+    return db.card_detail(conn, board_id, card_id)
+
+
+@router.delete("/checklist/{item_id}")
+def delete_checklist_item(
+    item_id: int, board_id: int = Depends(get_board_id), conn=Depends(get_conn, scope="function")
+):
+    card_id = db.delete_checklist_item(conn, board_id, item_id)
+    return db.card_detail(conn, board_id, card_id)

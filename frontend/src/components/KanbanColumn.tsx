@@ -17,6 +17,7 @@ type KanbanColumnProps = {
   onDelete: (columnId: string) => void;
   onAddCard: (columnId: string, title: string, details: string, fields: CardFields) => void;
   onDeleteCard: (columnId: string, cardId: string) => void;
+  onOpenCard: (cardId: string) => void;
   onEditCard: (cardId: string, title: string, details: string, fields: CardFields) => void;
 };
 
@@ -31,6 +32,7 @@ export const KanbanColumn = ({
   onAddCard,
   onDeleteCard,
   onEditCard,
+  onOpenCard,
 }: KanbanColumnProps) => {
   const { setNodeRef, isOver } = useDroppable({ id: column.id });
   const [confirming, setConfirming] = useState(false);
@@ -88,6 +90,7 @@ export const KanbanColumn = ({
               card={card}
               onDelete={(cardId) => onDeleteCard(column.id, cardId)}
               onEdit={onEditCard}
+              onOpen={onOpenCard}
               dragDisabled={filtering}
             />
           ))}

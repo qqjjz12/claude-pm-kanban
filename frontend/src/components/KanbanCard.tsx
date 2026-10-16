@@ -5,12 +5,13 @@ import clsx from "clsx";
 import { parseLabels, type Card, type CardFields } from "@/lib/kanban";
 import { CardBadges, PRIORITY_BORDER } from "@/components/CardBadges";
 import { CardFieldsEditor, type FieldsDraft } from "@/components/CardFieldsEditor";
-import { PencilIcon, TrashIcon } from "@/components/icons";
+import { ChatIcon, PencilIcon, TrashIcon } from "@/components/icons";
 
 type KanbanCardProps = {
   card: Card;
   onDelete: (cardId: string) => void;
   onEdit: (cardId: string, title: string, details: string, fields: CardFields) => void;
+  onOpen: (cardId: string) => void;
   dragDisabled?: boolean;
 };
 
@@ -20,7 +21,7 @@ const toDraft = (card: Card): FieldsDraft => ({
   labels: card.labels.join(", "),
 });
 
-export const KanbanCard = ({ card, onDelete, onEdit, dragDisabled }: KanbanCardProps) => {
+export const KanbanCard = ({ card, onDelete, onEdit, onOpen, dragDisabled }: KanbanCardProps) => {
   const [isEditing, setIsEditing] = useState(false);
   const [title, setTitle] = useState(card.title);
   const [details, setDetails] = useState(card.details);
@@ -121,6 +122,15 @@ export const KanbanCard = ({ card, onDelete, onEdit, dragDisabled }: KanbanCardP
             <CardBadges card={card} />
           </div>
           <div className="-mr-1 -mt-1 flex shrink-0 items-center gap-0.5 opacity-60 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
+            <button
+              type="button"
+              onClick={() => onOpen(card.id)}
+              title="Checklist and comments"
+              className="rounded-full p-1.5 text-[var(--gray-text)] transition hover:bg-[var(--surface)] hover:text-[var(--primary-blue)]"
+              aria-label={`Details for ${card.title}`}
+            >
+              <ChatIcon />
+            </button>
             <button
               type="button"
               onClick={handleEdit}

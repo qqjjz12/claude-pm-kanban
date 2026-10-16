@@ -8,7 +8,7 @@
 | Frontend unit (Vitest) | `cd frontend && npm run test:unit` | jsdom; the API module or `fetch` is mocked |
 | End to end (Playwright) | `cd frontend && npm run test:e2e` | Needs the container running (`scripts/start`), at http://localhost:8000 |
 
-Counts: backend 131 passing plus 2 live tests skipped without the key, frontend unit 90, end to end 25.
+Counts: backend 145 passing plus 2 live tests skipped without the key, frontend unit 104, end to end 28.
 
 ## Backend (pytest) - `backend/tests/`
 
@@ -65,6 +65,16 @@ Counts: backend 131 passing plus 2 live tests skipped without the key, frontend 
 | test_update_* | Update sets fields, omitted fields are kept, `""` / `[]` / `none` clear them, invalid values are 422 |
 | test_move_keeps_fields | Moving a card does not lose its fields |
 | test_ai_* | The AI can set fields on create and edit, edits change only given fields, can clear a due date, invalid values are skipped and reported |
+
+### test_card_details.py
+
+| Test | What it checks |
+| --- | --- |
+| test_new_card_has_empty_detail / test_add_comment_records_author_and_returns_detail / test_comments_are_ordered_oldest_first | Comments, author, timestamps, ordering, board summary counts |
+| test_comment_validation / test_checklist_validation | Blank and over-long input is 422 |
+| test_delete_comment / test_checklist_lifecycle / test_checklist_positions_stay_contiguous_after_delete | Checklist add, tick, rename, remove; comment delete |
+| test_deleting_a_card_* / test_deleting_a_board_* | Cascade deletes |
+| test_unknown_ids_are_404 / test_other_users_* / test_item_from_another_board_* / test_requires_login | Ownership and auth |
 
 ### test_migration.py
 
@@ -224,6 +234,10 @@ Live (skipped when `OPENROUTER_API_KEY` is not set):
 
 `parseLabels`, `today`, `isOverdue`, `formatDueDate`, `matchesFilters` (search over title/details/labels, priority, exact label, overdue, combined), `allLabels`, `boardStats`. KanbanBoard tests cover the filter bar: summary, hiding, counts, clearing, editing a filtered card. KanbanBoard tests also cover adding a card with fields, badges and editing/clearing fields.
 
+### components/CardDetailModal.test.tsx (`@/lib/api` mocked)
+
+Load and error, checklist add/toggle/remove with progress, comments add/delete, blank input, failure keeps text, text typed during a save is kept, close via button/Escape/backdrop. KanbanBoard tests cover opening the dialog and the badges.
+
 ### components/Workspace.test.tsx (`@/lib/api` mocked, board mocked)
 
 Loading and retry, switching boards, create (with template) / rename / delete with confirmation and error handling, blank names ignored, delete disabled for the last board, username and log out, account panel toggle.
@@ -279,6 +293,10 @@ Run against the container with the real backend. Tests that change data create u
 ### card-fields.spec.ts
 
 Priority, due date (overdue badge) and labels persist across reload; edit and clear them.
+
+### card-details.spec.ts
+
+Checklist and comments persist, show as card badges, and can be removed; deleting a card removes its details.
 
 ### filters.spec.ts
 

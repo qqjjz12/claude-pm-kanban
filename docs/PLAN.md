@@ -171,4 +171,6 @@ Success: full chat experience works end to end; AI-driven board changes appear i
 - [x] Iteration 2, frontend: register form, board switcher/creation/rename/delete, column add/delete, account panel (password, delete), AI operations for columns. Not done: dragging columns to reorder (API exists)
 - [x] Iteration 3: card fields (priority, due date, labels), AI support
 - [x] Iteration 4: search and filters (client-side) and board summary. A separate card detail modal was skipped: the inline edit already covers all fields
-- [ ] Iteration 5+: checklists/comments, activity log, board stats, e2e coverage for all of the above
+- [x] Iteration 5: card checklists and comments in a details dialog
+- [ ] Iteration 6: activity log, board dashboard
+- [ ] Iteration 7+: coverage review, hardening (session expiry, rate limiting), docs

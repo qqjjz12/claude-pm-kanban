@@ -191,3 +191,34 @@ describe("api", () => {
     });
   });
 });
+
+describe("card detail api", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("uses the right routes and bodies", async () => {
+    api.setActiveBoard(4);
+    const calls: [string, string, unknown][] = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((url: string, init: RequestInit) => {
+        calls.push([init.method as string, url, init.body && JSON.parse(init.body as string)]);
+        return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve({}) });
+      })
+    );
+    await api.getCardDetail("card-1");
+    await api.addComment("card-1", "hi");
+    await api.deleteComment(2);
+    await api.addChecklistItem("card-1", "do it");
+    await api.updateChecklistItem(3, { done: true });
+    await api.deleteChecklistItem(3);
+    api.setActiveBoard(null);
+    expect(calls).toEqual([
+      ["GET", "/api/cards/card-1/detail?board=4", undefined],
+      ["POST", "/api/cards/card-1/comments?board=4", { body: "hi" }],
+      ["DELETE", "/api/comments/2?board=4", undefined],
+      ["POST", "/api/cards/card-1/checklist?board=4", { text: "do it" }],
+      ["PUT", "/api/checklist/3?board=4", { done: true }],
+      ["DELETE", "/api/checklist/3?board=4", undefined],
+    ]);
+  });
+});

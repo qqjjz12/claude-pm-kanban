@@ -99,6 +99,8 @@ describe("filters", () => {
     priority: "medium",
     dueDate: "2000-01-01",
     labels: ["Docs", "api"],
+    commentCount: 0,
+    checklist: { done: 0, total: 0 },
     ...over,
   });
   const now = new Date(2030, 0, 1);

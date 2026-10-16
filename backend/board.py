@@ -71,6 +71,7 @@ def get_board_id(
     board: int | None = Query(default=None),
     conn=Depends(get_conn, scope="function"),
 ) -> int:
+    conn.actor = username
     return db.ensure_board(conn, username, board)
 
 
@@ -295,3 +296,12 @@ def delete_checklist_item(
 ):
     card_id = db.delete_checklist_item(conn, board_id, item_id)
     return db.card_detail(conn, board_id, card_id)
+
+
+@router.get("/activity")
+def activity(
+    limit: int = Query(default=50, ge=1, le=200),
+    board_id: int = Depends(get_board_id),
+    conn=Depends(get_conn, scope="function"),
+):
+    return db.list_activity(conn, board_id, limit)

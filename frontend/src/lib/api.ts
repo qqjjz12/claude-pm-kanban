@@ -137,6 +137,11 @@ export const updateChecklistItem = (
 export const deleteChecklistItem = (itemId: number): Promise<CardDetail> =>
   request("DELETE", scoped(`/api/checklist/${itemId}`));
 
+export type ActivityEntry = { id: number; actor: string; message: string; createdAt: string };
+
+export const getActivity = (): Promise<ActivityEntry[]> =>
+  request("GET", scoped("/api/activity"));
+
 export type ChatMessage = { role: "user" | "assistant"; content: string };
 
 export const chat = (

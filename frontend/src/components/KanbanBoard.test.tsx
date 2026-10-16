@@ -355,4 +355,34 @@ describe("KanbanBoard", () => {
       expect(within(card).getByText("3 comments")).toBeVisible();
     });
   });
+
+  describe("views", () => {
+    it("switches between board, dashboard and activity", async () => {
+      mocked.getActivity.mockResolvedValue([
+        { id: 1, actor: "user", message: 'created card "X"', createdAt: "2030-01-01 00:00:00" },
+      ]);
+      await renderBoard();
+      expect(screen.getByRole("button", { name: "Board" })).toHaveAttribute("aria-pressed", "true");
+
+      await userEvent.click(screen.getByRole("button", { name: "Dashboard" }));
+      expect(screen.getByRole("region", { name: "Dashboard" })).toBeVisible();
+      expect(screen.queryAllByTestId(/^column-/)).toHaveLength(0);
+      expect(screen.queryByLabelText("Search cards")).not.toBeInTheDocument();
+
+      await userEvent.click(screen.getByRole("button", { name: "Activity" }));
+      expect(await screen.findByText(/created card "X"/)).toBeVisible();
+      expect(mocked.getActivity).toHaveBeenCalledOnce();
+
+      await userEvent.click(screen.getByRole("button", { name: "Board" }));
+      expect(screen.getAllByTestId(/^column-/)).toHaveLength(5);
+    });
+
+    it("keeps the filters when returning to the board", async () => {
+      await renderBoard();
+      await userEvent.type(screen.getByLabelText("Search cards"), "signals");
+      await userEvent.click(screen.getByRole("button", { name: "Dashboard" }));
+      await userEvent.click(screen.getByRole("button", { name: "Board" }));
+      expect(screen.getByLabelText("Search cards")).toHaveValue("signals");
+    });
+  });
 });

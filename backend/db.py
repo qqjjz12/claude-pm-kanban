@@ -37,6 +37,14 @@ CREATE TABLE IF NOT EXISTS cards (
     labels TEXT NOT NULL DEFAULT '[]'
 );
 CREATE INDEX IF NOT EXISTS idx_cards_column ON cards(column_id, position);
+CREATE TABLE IF NOT EXISTS activity (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    board_id INTEGER NOT NULL REFERENCES boards(id) ON DELETE CASCADE,
+    actor TEXT NOT NULL,
+    message TEXT NOT NULL,
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_activity_board ON activity(board_id, id);
 CREATE TABLE IF NOT EXISTS comments (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     card_id INTEGER NOT NULL REFERENCES cards(id) ON DELETE CASCADE,
@@ -89,12 +97,21 @@ DEMO_PASSWORD = "password"
 USERNAME_RE = re.compile(r"^[A-Za-z0-9_.-]{3,32}$")
 
 
+MAX_ACTIVITY = 500
+
+
+class Connection(sqlite3.Connection):
+    """Carries who is making the changes, so db functions can write the activity log."""
+
+    actor = "system"
+
+
 def connect() -> sqlite3.Connection:
     path = Path(os.environ.get("PM_DB_PATH", "pm.db"))
     path.parent.mkdir(parents=True, exist_ok=True)
     # One connection per request, used by one thread at a time. FastAPI may run a
     # dependency's setup and teardown on different worker threads.
-    conn = sqlite3.connect(path, check_same_thread=False)
+    conn = sqlite3.connect(path, check_same_thread=False, factory=Connection)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON")
     return conn
@@ -273,6 +290,37 @@ def delete_board(conn: sqlite3.Connection, user_id: int, board_id: int) -> None:
     conn.execute("DELETE FROM boards WHERE id = ?", (board_id,))
 
 
+def log_activity(conn: sqlite3.Connection, board_id: int, message: str) -> None:
+    conn.execute(
+        "INSERT INTO activity (board_id, actor, message) VALUES (?, ?, ?)",
+        (board_id, conn.actor, message),
+    )
+    conn.execute(
+        "DELETE FROM activity WHERE board_id = ? AND id NOT IN "
+        "(SELECT id FROM activity WHERE board_id = ? ORDER BY id DESC LIMIT ?)",
+        (board_id, board_id, MAX_ACTIVITY),
+    )
+
+
+def list_activity(conn: sqlite3.Connection, board_id: int, limit: int = 50) -> list[dict]:
+    return [
+        {"id": r["id"], "actor": r["actor"], "message": r["message"], "createdAt": r["created_at"]}
+        for r in conn.execute(
+            "SELECT id, actor, message, created_at FROM activity "
+            "WHERE board_id = ? ORDER BY id DESC LIMIT ?",
+            (board_id, limit),
+        )
+    ]
+
+
+def _column_title(conn: sqlite3.Connection, column_pk: int) -> str:
+    return conn.execute("SELECT title FROM columns WHERE id = ?", (column_pk,)).fetchone()["title"]
+
+
+def _card_title(conn: sqlite3.Connection, card_pk: int) -> str:
+    return conn.execute("SELECT title FROM cards WHERE id = ?", (card_pk,)).fetchone()["title"]
+
+
 def _card_dict(row: sqlite3.Row) -> dict:
     return {
         "id": f"card-{row['id']}",
@@ -363,7 +411,10 @@ def _set_order(conn: sqlite3.Connection, column_id: int, card_ids: list[int]) ->
 
 def rename_column(conn: sqlite3.Connection, board_id: int, column_id: str, title: str) -> None:
     pk = _require_column(conn, board_id, column_id)
+    old = _column_title(conn, pk)
     conn.execute("UPDATE columns SET title = ? WHERE id = ?", (title, pk))
+    if old != title:
+        log_activity(conn, board_id, f'renamed column "{old}" to "{title}"')
 
 
 def _column_ids(conn: sqlite3.Connection, board_id: int) -> list[int]:
@@ -386,12 +437,16 @@ def create_column(conn: sqlite3.Connection, board_id: int, title: str) -> dict:
         "INSERT INTO columns (board_id, title, position) VALUES (?, ?, ?)",
         (board_id, title, position),
     ).lastrowid
+    log_activity(conn, board_id, f'added column "{title}"')
     return {"id": f"col-{pk}", "title": title, "cardIds": []}
 
 
 def delete_column(conn: sqlite3.Connection, board_id: int, column_id: str) -> None:
     pk = _require_column(conn, board_id, column_id)
+    title = _column_title(conn, pk)
+    count = len(_card_ids(conn, pk))
     conn.execute("DELETE FROM columns WHERE id = ?", (pk,))
+    log_activity(conn, board_id, f'deleted column "{title}" and its {count} cards')
     _set_column_order(conn, _column_ids(conn, board_id))
 
 
@@ -419,6 +474,7 @@ def create_card(
         "VALUES (?, ?, ?, ?, ?, ?, ?)",
         (col_pk, title, details, position, priority, due_date or None, json.dumps(labels or [])),
     ).lastrowid
+    log_activity(conn, board_id, f'created card "{title}" in "{_column_title(conn, col_pk)}"')
     return _card_dict(conn.execute(CARD_SELECT + " WHERE cards.id = ?", (pk,)).fetchone())
 
 
@@ -435,8 +491,13 @@ def update_card(
     """Replace title and details. priority, due_date and labels are left alone when None;
     an empty due_date clears it."""
     card = _require_card(conn, board_id, card_id)
+    old_title = _card_title(conn, card["id"])
     conn.execute(
         "UPDATE cards SET title = ?, details = ? WHERE id = ?", (title, details, card["id"])
+    )
+    log_activity(
+        conn, board_id,
+        f'edited card "{title}"' if old_title == title else f'edited card "{old_title}" (now "{title}")',
     )
     if priority is not None:
         conn.execute("UPDATE cards SET priority = ? WHERE id = ?", (priority, card["id"]))
@@ -448,7 +509,9 @@ def update_card(
 
 def delete_card(conn: sqlite3.Connection, board_id: int, card_id: str) -> None:
     card = _require_card(conn, board_id, card_id)
+    title = _card_title(conn, card["id"])
     conn.execute("DELETE FROM cards WHERE id = ?", (card["id"],))
+    log_activity(conn, board_id, f'deleted card "{title}"')
     _set_order(conn, card["column_id"], _card_ids(conn, card["column_id"]))
 
 
@@ -458,6 +521,12 @@ def move_card(
     card = _require_card(conn, board_id, card_id)
     target = _require_column(conn, board_id, column_id)
     source = card["column_id"]
+    if source != target:
+        log_activity(
+            conn, board_id,
+            f'moved card "{_card_title(conn, card["id"])}" from "{_column_title(conn, source)}" '
+            f'to "{_column_title(conn, target)}"',
+        )
     _set_order(conn, source, [p for p in _card_ids(conn, source) if p != card["id"]])
     ids = [p for p in _card_ids(conn, target) if p != card["id"]]
     ids.insert(max(0, min(position, len(ids))), card["id"])
@@ -513,6 +582,7 @@ def add_comment(
         "INSERT INTO comments (card_id, author, body) VALUES (?, ?, ?)",
         (card["id"], author, body),
     )
+    log_activity(conn, board_id, f'commented on "{_card_title(conn, card["id"])}"')
     return card_id
 
 

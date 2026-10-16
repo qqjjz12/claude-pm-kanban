@@ -189,6 +189,7 @@ def chat(
         raise HTTPException(status_code=502, detail=f"AI request failed: {error}")
 
     failed = []
+    conn.actor = "AI assistant"
     for op in result.operations:
         try:
             apply_operation(conn, board_id, op)

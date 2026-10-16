@@ -222,3 +222,15 @@ describe("card detail api", () => {
     ]);
   });
 });
+
+describe("activity api", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("getActivity is scoped to the active board", async () => {
+    api.setActiveBoard(9);
+    const fetchMock = stubFetch(true, []);
+    expect(await api.getActivity()).toEqual([]);
+    api.setActiveBoard(null);
+    expect(lastCall(fetchMock)).toMatchObject({ url: "/api/activity?board=9", method: "GET" });
+  });
+});

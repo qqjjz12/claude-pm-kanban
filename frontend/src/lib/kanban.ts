@@ -205,3 +205,48 @@ export const boardStats = (cards: Record<string, Card>, now = new Date()) => {
     high: all.filter((card) => card.priority === "high").length,
   };
 };
+
+const addDays = (now: Date, days: number) => {
+  const later = new Date(now);
+  later.setDate(later.getDate() + days);
+  return later;
+};
+
+export const dashboardStats = (board: BoardData, now = new Date()) => {
+  const cards = Object.values(board.cards);
+  const byPriority = { none: 0, low: 0, medium: 0, high: 0 } as Record<Priority, number>;
+  const counts = new Map<string, number>();
+  const todayText = today(now);
+  const weekText = today(addDays(now, 7));
+  let done = 0;
+  let total = 0;
+  let comments = 0;
+  for (const card of cards) {
+    byPriority[card.priority] += 1;
+    done += card.checklist.done;
+    total += card.checklist.total;
+    comments += card.commentCount;
+    for (const label of card.labels) {
+      counts.set(label, (counts.get(label) ?? 0) + 1);
+    }
+  }
+  const byDate = (a: Card, b: Card) => (a.dueDate ?? "").localeCompare(b.dueDate ?? "");
+  return {
+    total: cards.length,
+    perColumn: board.columns.map((column) => ({
+      id: column.id,
+      title: column.title,
+      count: column.cardIds.length,
+    })),
+    byPriority,
+    overdue: cards.filter((card) => isOverdue(card.dueDate, now)).sort(byDate),
+    dueSoon: cards
+      .filter((card) => card.dueDate !== null && card.dueDate >= todayText && card.dueDate <= weekText)
+      .sort(byDate),
+    labels: [...counts.entries()]
+      .map(([label, count]) => ({ label, count }))
+      .sort((a, b) => b.count - a.count || a.label.localeCompare(b.label)),
+    checklist: { done, total },
+    comments,
+  };
+};

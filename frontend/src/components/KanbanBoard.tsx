@@ -16,7 +16,9 @@ import { KanbanColumn } from "@/components/KanbanColumn";
 import { KanbanCardPreview } from "@/components/KanbanCardPreview";
 import { NewColumnForm } from "@/components/NewColumnForm";
 import * as api from "@/lib/api";
+import { ActivityPanel } from "@/components/ActivityPanel";
 import { CardDetailModal } from "@/components/CardDetailModal";
+import { Dashboard } from "@/components/Dashboard";
 import { FilterBar } from "@/components/FilterBar";
 import {
   EMPTY_FILTERS,
@@ -30,6 +32,14 @@ import {
   type Filters,
 } from "@/lib/kanban";
 
+type View = "board" | "dashboard" | "activity";
+
+const VIEWS: { id: View; label: string }[] = [
+  { id: "board", label: "Board" },
+  { id: "dashboard", label: "Dashboard" },
+  { id: "activity", label: "Activity" },
+];
+
 type KanbanBoardProps = {
   boardId: number;
   header: ReactNode;
@@ -40,6 +50,7 @@ export const KanbanBoard = ({ boardId, header, notice }: KanbanBoardProps) => {
   const [board, setBoard] = useState<BoardData | null>(null);
   const [activeCardId, setActiveCardId] = useState<string | null>(null);
   const [error, setError] = useState("");
+  const [view, setView] = useState<View>("board");
   const [detailCardId, setDetailCardId] = useState<string | null>(null);
   const [filters, setFilters] = useState<Filters>(EMPTY_FILTERS);
 
@@ -246,13 +257,36 @@ export const KanbanBoard = ({ boardId, header, notice }: KanbanBoardProps) => {
         {header}
         {notice}
 
-        <FilterBar
-          filters={filters}
-          onChange={setFilters}
-          labels={allLabels(board.cards)}
-          shown={shown}
-          stats={boardStats(board.cards)}
-        />
+        <nav aria-label="Views" className="flex gap-2">
+          {VIEWS.map(({ id, label }) => (
+            <button
+              key={id}
+              type="button"
+              onClick={() => setView(id)}
+              aria-pressed={view === id}
+              className={`rounded-full px-4 py-2 text-xs font-semibold uppercase tracking-wide transition ${
+                view === id
+                  ? "bg-[var(--navy-dark)] text-white"
+                  : "border border-[var(--stroke)] bg-white/80 text-[var(--navy-dark)] hover:border-[var(--primary-blue)]"
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </nav>
+
+        {view === "dashboard" && <Dashboard board={board} />}
+        {view === "activity" && <ActivityPanel />}
+
+        {view === "board" && (
+          <FilterBar
+            filters={filters}
+            onChange={setFilters}
+            labels={allLabels(board.cards)}
+            shown={shown}
+            stats={boardStats(board.cards)}
+          />
+        )}
 
         {error && (
           <p
@@ -263,6 +297,7 @@ export const KanbanBoard = ({ boardId, header, notice }: KanbanBoardProps) => {
           </p>
         )}
 
+        {view === "board" && (
         <DndContext
           sensors={sensors}
           collisionDetection={closestCorners}
@@ -296,6 +331,7 @@ export const KanbanBoard = ({ boardId, header, notice }: KanbanBoardProps) => {
             ) : null}
           </DragOverlay>
         </DndContext>
+        )}
       </main>
     </div>
     {detailCardId && board.cards[detailCardId] && (

@@ -2,6 +2,7 @@ import {
   EMPTY_FILTERS,
   allLabels,
   boardStats,
+  dashboardStats,
   formatDueDate,
   isFiltering,
   isOverdue,
@@ -146,5 +147,82 @@ describe("filters", () => {
     expect(allLabels(cards)).toEqual(["a", "b"]);
     expect(boardStats(cards, now)).toEqual({ total: 2, overdue: 1, high: 1 });
     expect(boardStats({}, now)).toEqual({ total: 0, overdue: 0, high: 0 });
+  });
+});
+
+describe("dashboardStats", () => {
+  const card = (id: string, over: Partial<Card> = {}): Card => ({
+    id,
+    title: id,
+    details: "",
+    priority: "none",
+    dueDate: null,
+    labels: [],
+    commentCount: 0,
+    checklist: { done: 0, total: 0 },
+    ...over,
+  });
+  const now = new Date(2030, 5, 15);
+
+  it("handles an empty board", () => {
+    const stats = dashboardStats({ columns: [], cards: {} }, now);
+    expect(stats).toMatchObject({
+      total: 0,
+      perColumn: [],
+      overdue: [],
+      dueSoon: [],
+      labels: [],
+      checklist: { done: 0, total: 0 },
+      comments: 0,
+    });
+  });
+
+  it("counts columns, priorities, labels, checklists and comments", () => {
+    const stats = dashboardStats(
+      {
+        columns: [
+          { id: "c1", title: "A", cardIds: ["a", "b"] },
+          { id: "c2", title: "B", cardIds: ["c"] },
+        ],
+        cards: {
+          a: card("a", { priority: "high", labels: ["x", "y"], commentCount: 2, checklist: { done: 1, total: 3 } }),
+          b: card("b", { priority: "high", labels: ["x"], checklist: { done: 2, total: 2 } }),
+          c: card("c", { labels: ["z"], commentCount: 1 }),
+        },
+      },
+      now
+    );
+    expect(stats.total).toBe(3);
+    expect(stats.perColumn).toEqual([
+      { id: "c1", title: "A", count: 2 },
+      { id: "c2", title: "B", count: 1 },
+    ]);
+    expect(stats.byPriority).toEqual({ none: 1, low: 0, medium: 0, high: 2 });
+    expect(stats.labels).toEqual([
+      { label: "x", count: 2 },
+      { label: "y", count: 1 },
+      { label: "z", count: 1 },
+    ]);
+    expect(stats.checklist).toEqual({ done: 3, total: 5 });
+    expect(stats.comments).toBe(3);
+  });
+
+  it("separates overdue from due within a week, sorted by date", () => {
+    const stats = dashboardStats(
+      {
+        columns: [],
+        cards: {
+          late: card("late", { dueDate: "2030-06-01" }),
+          later: card("later", { dueDate: "2030-06-14" }),
+          today: card("today", { dueDate: "2030-06-15" }),
+          edge: card("edge", { dueDate: "2030-06-22" }),
+          far: card("far", { dueDate: "2030-06-23" }),
+          none: card("none"),
+        },
+      },
+      now
+    );
+    expect(stats.overdue.map((c) => c.id)).toEqual(["late", "later"]);
+    expect(stats.dueSoon.map((c) => c.id)).toEqual(["today", "edge"]);
   });
 });

@@ -174,4 +174,6 @@ Success: full chat experience works end to end; AI-driven board changes appear i
 - [x] Iteration 5: card checklists and comments in a details dialog
 - [x] Iteration 6: activity log (user and AI attributed), board dashboard
 - [x] Iteration 7: coverage review (backend source 100%, frontend about 95%; the rest is drag handling covered by e2e), session expiry, login/password throttling, malformed cookie handling
-- [ ] Iteration 8+: final docs, README, full verification
+- [x] Iteration 8: documentation brought in line with the code (README, .env.example, DATABASE.md, schema.json, AGENTS.md, CLAUDE.md)
+- [ ] Iteration 9: drag to reorder columns, board export
+- [ ] Iteration 10: final verification

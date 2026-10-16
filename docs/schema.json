@@ -1,56 +1,256 @@
 {
   "database": "sqlite",
   "file": "PM_DB_PATH (default /data/pm.db in Docker)",
-  "pragmas": ["foreign_keys = ON"],
+  "pragmas": [
+    "foreign_keys = ON"
+  ],
   "tables": {
     "users": {
       "columns": {
-        "id": { "type": "INTEGER", "primary_key": true, "autoincrement": true },
-        "username": { "type": "TEXT", "not_null": true, "unique": true }
-      }
+        "id": {
+          "type": "INTEGER",
+          "primary_key": true,
+          "autoincrement": true
+        },
+        "username": {
+          "type": "TEXT",
+          "not_null": true,
+          "unique": true
+        },
+        "password_hash": {
+          "type": "TEXT",
+          "nullable": true,
+          "notes": "scrypt$salt$digest (hex). NULL means the account cannot sign in"
+        }
+      },
+      "notes": "usernames are matched ignoring case (COLLATE NOCASE in queries)"
     },
     "boards": {
       "columns": {
-        "id": { "type": "INTEGER", "primary_key": true, "autoincrement": true },
+        "id": {
+          "type": "INTEGER",
+          "primary_key": true,
+          "autoincrement": true
+        },
         "user_id": {
           "type": "INTEGER",
           "not_null": true,
-          "unique": true,
           "references": "users(id)",
           "on_delete": "CASCADE"
         },
-        "name": { "type": "TEXT", "not_null": true, "default": "My Board" }
+        "name": {
+          "type": "TEXT",
+          "not_null": true,
+          "default": "My Board"
+        }
       },
-      "notes": "unique(user_id) enforces one board per user for the MVP; drop it to allow many boards later"
+      "indexes": [
+        {
+          "columns": [
+            "user_id"
+          ]
+        }
+      ]
     },
     "columns": {
       "columns": {
-        "id": { "type": "INTEGER", "primary_key": true, "autoincrement": true },
+        "id": {
+          "type": "INTEGER",
+          "primary_key": true,
+          "autoincrement": true
+        },
         "board_id": {
           "type": "INTEGER",
           "not_null": true,
           "references": "boards(id)",
           "on_delete": "CASCADE"
         },
-        "title": { "type": "TEXT", "not_null": true },
-        "position": { "type": "INTEGER", "not_null": true }
+        "title": {
+          "type": "TEXT",
+          "not_null": true
+        },
+        "position": {
+          "type": "INTEGER",
+          "not_null": true
+        }
       },
-      "indexes": [{ "columns": ["board_id", "position"] }]
+      "indexes": [
+        {
+          "columns": [
+            "board_id",
+            "position"
+          ]
+        }
+      ]
     },
     "cards": {
       "columns": {
-        "id": { "type": "INTEGER", "primary_key": true, "autoincrement": true },
+        "id": {
+          "type": "INTEGER",
+          "primary_key": true,
+          "autoincrement": true
+        },
         "column_id": {
           "type": "INTEGER",
           "not_null": true,
           "references": "columns(id)",
           "on_delete": "CASCADE"
         },
-        "title": { "type": "TEXT", "not_null": true },
-        "details": { "type": "TEXT", "not_null": true, "default": "" },
-        "position": { "type": "INTEGER", "not_null": true }
+        "title": {
+          "type": "TEXT",
+          "not_null": true
+        },
+        "details": {
+          "type": "TEXT",
+          "not_null": true,
+          "default": ""
+        },
+        "position": {
+          "type": "INTEGER",
+          "not_null": true
+        },
+        "priority": {
+          "type": "TEXT",
+          "not_null": true,
+          "default": "none",
+          "values": [
+            "none",
+            "low",
+            "medium",
+            "high"
+          ]
+        },
+        "due_date": {
+          "type": "TEXT",
+          "nullable": true,
+          "notes": "YYYY-MM-DD"
+        },
+        "labels": {
+          "type": "TEXT",
+          "not_null": true,
+          "default": "[]",
+          "notes": "JSON array of strings"
+        }
       },
-      "indexes": [{ "columns": ["column_id", "position"] }]
+      "indexes": [
+        {
+          "columns": [
+            "column_id",
+            "position"
+          ]
+        }
+      ]
+    },
+    "comments": {
+      "columns": {
+        "id": {
+          "type": "INTEGER",
+          "primary_key": true,
+          "autoincrement": true
+        },
+        "card_id": {
+          "type": "INTEGER",
+          "not_null": true,
+          "references": "cards(id)",
+          "on_delete": "CASCADE"
+        },
+        "author": {
+          "type": "TEXT",
+          "not_null": true
+        },
+        "body": {
+          "type": "TEXT",
+          "not_null": true
+        },
+        "created_at": {
+          "type": "TEXT",
+          "not_null": true,
+          "default": "CURRENT_TIMESTAMP",
+          "notes": "UTC"
+        }
+      },
+      "indexes": [
+        {
+          "columns": [
+            "card_id",
+            "id"
+          ]
+        }
+      ]
+    },
+    "checklist_items": {
+      "columns": {
+        "id": {
+          "type": "INTEGER",
+          "primary_key": true,
+          "autoincrement": true
+        },
+        "card_id": {
+          "type": "INTEGER",
+          "not_null": true,
+          "references": "cards(id)",
+          "on_delete": "CASCADE"
+        },
+        "text": {
+          "type": "TEXT",
+          "not_null": true
+        },
+        "done": {
+          "type": "INTEGER",
+          "not_null": true,
+          "default": 0
+        },
+        "position": {
+          "type": "INTEGER",
+          "not_null": true
+        }
+      },
+      "indexes": [
+        {
+          "columns": [
+            "card_id",
+            "position"
+          ]
+        }
+      ]
+    },
+    "activity": {
+      "columns": {
+        "id": {
+          "type": "INTEGER",
+          "primary_key": true,
+          "autoincrement": true
+        },
+        "board_id": {
+          "type": "INTEGER",
+          "not_null": true,
+          "references": "boards(id)",
+          "on_delete": "CASCADE"
+        },
+        "actor": {
+          "type": "TEXT",
+          "not_null": true
+        },
+        "message": {
+          "type": "TEXT",
+          "not_null": true
+        },
+        "created_at": {
+          "type": "TEXT",
+          "not_null": true,
+          "default": "CURRENT_TIMESTAMP",
+          "notes": "UTC"
+        }
+      },
+      "indexes": [
+        {
+          "columns": [
+            "board_id",
+            "id"
+          ]
+        }
+      ],
+      "notes": "the newest 500 rows per board are kept"
     }
   }
 }

@@ -6,7 +6,7 @@ Kanban project management app with an AI chat sidebar. `AGENTS.md` (root), `back
 
 ## Commands
 
-Docker is the only run mode. Needs a `.env` in the project root with `OPENROUTER_API_KEY`.
+Docker is the only run mode. Needs a `.env` in the project root (see `.env.example`): `OPENROUTER_API_KEY`, and `PM_SECRET` for real use.
 
 - Start / stop (serves http://localhost:8000): `scripts/start.sh` / `scripts/stop.sh` (Mac/Linux), `scripts/start.ps1` / `scripts/stop.ps1` (Windows)
 - Backend tests (from `backend/`): `uv run pytest`; single test: `uv run pytest tests/test_board.py::test_move_within_column`; include the live AI tests: `uv run --env-file ../.env pytest`
@@ -18,10 +18,10 @@ Docker is the only run mode. Needs a `.env` in the project root with `OPENROUTER
 One Docker image, multi-stage: Node builds the Next.js static export (`output: 'export'`), then a Python image (uv) copies it to `backend/static/`, which FastAPI mounts at `/` (last, after all `/api` routes). SQLite lives at `/data/pm.db` (`PM_DB_PATH`) on the `pm-data` volume.
 
 Backend (`backend/`, raw `sqlite3`, no ORM):
-- `auth.py`: hardcoded `user` / `password`; `/api/login` sets an HMAC-signed httpOnly `session` cookie (secret `PM_SECRET`, dev default). `current_user` dependency guards every other route.
-- `db.py`: schema creation, per-user board seeding (`ensure_board`), and all card/column mutations. Ids exposed to the frontend are strings `col-N` / `card-N`; order is stored in `position` columns that must stay contiguous. Unknown or other-user ids raise `LookupError`, which `main.py` maps to 404.
-- `board.py`: REST routes that call `db.py`. `ai.py`: `POST /api/chat` sends the user's current board JSON plus history to OpenRouter (`openai/gpt-oss-120b`) with Structured Outputs (`reply` + list of `operations`) and applies those operations through the same `db.py` functions; invalid ones are skipped and reported in the reply. The response is `{reply, board}` with `board` null if nothing changed.
+- `auth.py`: accounts (`/api/register`, `/api/login`, `/api/logout`, `/api/me`, `/api/me/password`, `/api/me/delete`). Passwords are scrypt-hashed. The session is an HMAC-signed httpOnly cookie `username|expiry.signature` (secret `PM_SECRET`, expiry `PM_SESSION_SECONDS`). Failed password checks are throttled per client and username (429). `current_user` guards every other route and requires the user to still exist. The demo account `user` / `password` is created at startup.
+- `db.py`: schema creation and `_migrate` for older databases, users, boards (several per user, templates), and all column/card/comment/checklist mutations. Mutations also write the activity log through `conn.actor`. Ids exposed to the frontend are strings `col-N` / `card-N`; order is stored in `position` columns that must stay contiguous. Unknown or other-user ids raise `LookupError`, which `main.py` maps to 404.
+- `board.py`: REST routes that call `db.py`. Board-level routes take an optional `?board=<id>` (default: the user's first board). `ai.py`: `POST /api/chat` sends the user's current board JSON plus history to OpenRouter (`openai/gpt-oss-120b`) with Structured Outputs (`reply` + list of `operations`, including column and card-field operations) and applies those operations through the same `db.py` functions as `AI assistant`; invalid ones are skipped and reported in the reply. The response is `{reply, board}` with `board` null if nothing changed.
 
-Frontend (`frontend/src`): `AuthGate` checks `/api/me` and shows `LoginForm` or `KanbanBoard`. `KanbanBoard` loads from `lib/api.ts`, applies changes optimistically (dnd-kit; pure reorder logic in `lib/kanban.ts`), persists via the API, and reloads on failure. `ChatSidebar` keeps chat history in React state only (not persisted) and pushes the updated board into the board state when a reply includes one.
+Frontend (`frontend/src`): `AuthGate` (sign in / create account, session-expiry notice) renders `Workspace`, which owns the board list, the board switcher and the account panel and renders one `KanbanBoard` per selected board. `KanbanBoard` loads from `lib/api.ts` (`setActiveBoard` scopes calls), applies changes optimistically (dnd-kit; pure reorder and filter logic in `lib/kanban.ts`), persists via the API, and reloads on failure. Views: board (with filters), dashboard, activity. `CardDetailModal` handles checklist and comments. `ChatSidebar` keeps chat history in React state only (not persisted) and pushes the updated board into the board state when a reply includes one.
 
 Colors come from CSS variables in `globals.css` (yellow `#ecad0a`, blue `#209dd7`, purple `#753991`, navy `#032147`, gray `#888888`).

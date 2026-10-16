@@ -4,6 +4,9 @@ import { login } from "./helpers";
 // Data persists in the backend, so each test creates its own uniquely named
 // card and removes it at the end, leaving the seeded board untouched.
 
+// Wide enough that all five columns fit beside the chat sidebar without scrolling.
+test.use({ viewport: { width: 1600, height: 900 } });
+
 const column = (page: Page, index: number) =>
   page.locator('[data-testid^="column-"]').nth(index);
 

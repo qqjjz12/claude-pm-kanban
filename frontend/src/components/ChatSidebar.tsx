@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import * as api from "@/lib/api";
 import type { BoardData } from "@/lib/kanban";
+import { ChatIcon, ChevronRightIcon, SendIcon } from "@/components/icons";
 
 type ChatSidebarProps = {
   onBoardUpdate: (board: BoardData) => void;
@@ -52,13 +53,14 @@ export const ChatSidebar = ({ onBoardUpdate }: ChatSidebarProps) => {
   return (
     <aside
       aria-label="AI chat"
-      className={`flex flex-col border-t border-[var(--stroke)] bg-white lg:sticky lg:top-0 lg:h-screen lg:border-l lg:border-t-0 ${
-        open ? "lg:w-96" : "lg:w-14"
+      className={`flex shrink-0 flex-col border-t border-[var(--stroke)] bg-white lg:sticky lg:top-0 lg:h-screen lg:border-l lg:border-t-0 ${
+        open ? "lg:w-72 xl:w-80" : "lg:w-14"
       }`}
     >
       <div className="flex items-center justify-between gap-3 border-b border-[var(--stroke)] px-4 py-4">
         {open && (
-          <h2 className="font-display text-lg font-semibold text-[var(--navy-dark)]">
+          <h2 className="flex items-center gap-2 font-display text-lg font-semibold text-[var(--navy-dark)]">
+            <ChatIcon className="h-5 w-5 text-[var(--secondary-purple)]" />
             AI Assistant
           </h2>
         )}
@@ -67,9 +69,14 @@ export const ChatSidebar = ({ onBoardUpdate }: ChatSidebarProps) => {
           onClick={() => setOpen(!open)}
           aria-expanded={open}
           aria-label={open ? "Collapse chat" : "Expand chat"}
-          className="rounded-full border border-[var(--stroke)] px-3 py-1 text-xs font-semibold uppercase tracking-wide text-[var(--navy-dark)] transition hover:border-[var(--primary-blue)]"
+          title={open ? "Collapse chat" : "Expand chat"}
+          className="rounded-full border border-[var(--stroke)] p-2 text-[var(--navy-dark)] transition hover:border-[var(--primary-blue)] hover:text-[var(--primary-blue)]"
         >
-          {open ? "Hide" : "Chat"}
+          {open ? (
+            <ChevronRightIcon />
+          ) : (
+            <ChatIcon />
+          )}
         </button>
       </div>
 
@@ -123,9 +130,11 @@ export const ChatSidebar = ({ onBoardUpdate }: ChatSidebarProps) => {
           <button
             type="submit"
             disabled={loading}
-            className="rounded-full bg-[var(--secondary-purple)] px-4 py-2 text-xs font-semibold uppercase tracking-wide text-white transition hover:opacity-90 disabled:opacity-50"
+            aria-label="Send"
+            title="Send"
+            className="flex shrink-0 items-center justify-center rounded-full bg-[var(--secondary-purple)] p-2.5 text-white transition hover:opacity-90 disabled:opacity-50"
           >
-            Send
+            <SendIcon />
           </button>
         </form>
       </div>

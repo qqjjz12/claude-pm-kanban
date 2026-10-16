@@ -14,6 +14,7 @@ Next.js 16 (App Router, static export), React 19, TypeScript, Tailwind 4. Board 
 - `src/components/KanbanCard.tsx` - sortable card with inline edit and delete
 - `src/components/KanbanCardPreview.tsx` - card rendering used in the drag overlay
 - `src/components/NewCardForm.tsx` - collapsible add-card form
+- `src/components/icons.tsx` - small inline SVG icon set (edit, delete, add, send, chat, logout); icon-only buttons keep an `aria-label`
 - `src/lib/kanban.ts` - types (`Card`, `Column`, `BoardData`) and `moveCard` (pure reorder logic)
 - `src/lib/api.ts` - typed fetch wrappers for the backend routes
 - `src/test/fixtures.ts` - `initialData` board used by unit tests

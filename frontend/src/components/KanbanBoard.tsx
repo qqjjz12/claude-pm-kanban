@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, type ReactNode } from "react";
 import {
   DndContext,
   DragOverlay,
@@ -14,15 +14,17 @@ import {
 import { ChatSidebar } from "@/components/ChatSidebar";
 import { KanbanColumn } from "@/components/KanbanColumn";
 import { KanbanCardPreview } from "@/components/KanbanCardPreview";
-import { LogoutIcon } from "@/components/icons";
+import { NewColumnForm } from "@/components/NewColumnForm";
 import * as api from "@/lib/api";
 import { moveCard, type BoardData } from "@/lib/kanban";
 
 type KanbanBoardProps = {
-  onLogout: () => void;
+  boardId: number;
+  header: ReactNode;
+  notice?: ReactNode;
 };
 
-export const KanbanBoard = ({ onLogout }: KanbanBoardProps) => {
+export const KanbanBoard = ({ boardId, header, notice }: KanbanBoardProps) => {
   const [board, setBoard] = useState<BoardData | null>(null);
   const [activeCardId, setActiveCardId] = useState<string | null>(null);
   const [error, setError] = useState("");
@@ -35,19 +37,21 @@ export const KanbanBoard = ({ onLogout }: KanbanBoardProps) => {
 
   const load = useCallback(async () => {
     try {
+      api.setActiveBoard(boardId);
       setBoard(await api.getBoard());
       return true;
     } catch {
       return false;
     }
-  }, []);
+  }, [boardId]);
 
   useEffect(() => {
+    api.setActiveBoard(boardId);
     api
       .getBoard()
       .then(setBoard)
       .catch(() => setError("Could not load the board."));
-  }, []);
+  }, [boardId]);
 
   // Apply a change locally, then persist it. On failure, reload the server state.
   const persist = async (save: () => Promise<unknown>) => {
@@ -125,6 +129,25 @@ export const KanbanBoard = ({ onLogout }: KanbanBoardProps) => {
     persist(() => api.renameColumn(columnId, title));
   };
 
+  const handleAddColumn = (title: string) => {
+    persist(async () => {
+      const column = await api.createColumn(title);
+      setBoard((prev) => prev && { ...prev, columns: [...prev.columns, column] });
+    });
+  };
+
+  const handleDeleteColumn = (columnId: string) => {
+    const doomed = board.columns.find((column) => column.id === columnId);
+    setBoard({
+      ...board,
+      columns: board.columns.filter((column) => column.id !== columnId),
+      cards: Object.fromEntries(
+        Object.entries(board.cards).filter(([id]) => !doomed?.cardIds.includes(id))
+      ),
+    });
+    persist(() => api.deleteColumn(columnId));
+  };
+
   const handleAddCard = (columnId: string, title: string, details: string) => {
     persist(async () => {
       const card = await api.createCard(columnId, title, details);
@@ -174,30 +197,8 @@ export const KanbanBoard = ({ onLogout }: KanbanBoardProps) => {
       <div className="pointer-events-none absolute bottom-0 right-0 h-[520px] w-[520px] translate-x-1/4 translate-y-1/4 rounded-full bg-[radial-gradient(circle,_rgba(117,57,145,0.18)_0%,_rgba(117,57,145,0.05)_55%,_transparent_75%)]" />
 
       <main className="relative flex min-h-screen flex-col gap-6 px-4 pb-10 pt-6 lg:px-6">
-        <header className="flex items-center justify-between gap-4 rounded-3xl border border-[var(--stroke)] bg-white/80 px-6 py-4 shadow-[var(--shadow)] backdrop-blur">
-          <div className="min-w-0">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.3em] text-[var(--gray-text)]">
-              Single Board Kanban
-            </p>
-            <h1 className="mt-1 font-display text-2xl font-semibold text-[var(--navy-dark)]">
-              Kanban Studio
-            </h1>
-          </div>
-          <p className="hidden max-w-md flex-1 text-sm leading-6 text-[var(--gray-text)] xl:block">
-            Keep momentum visible. Rename columns, drag cards between stages,
-            and capture quick notes without getting buried in settings.
-          </p>
-          <button
-            type="button"
-            onClick={onLogout}
-            aria-label="Log out"
-            title="Log out"
-            className="flex shrink-0 items-center gap-2 rounded-full border border-[var(--stroke)] px-3 py-2 text-xs font-semibold uppercase tracking-wide text-[var(--navy-dark)] transition hover:border-[var(--primary-blue)] hover:text-[var(--primary-blue)]"
-          >
-            <LogoutIcon />
-            <span className="hidden sm:inline">Log out</span>
-          </button>
-        </header>
+        {header}
+        {notice}
 
         {error && (
           <p
@@ -222,11 +223,13 @@ export const KanbanBoard = ({ onLogout }: KanbanBoardProps) => {
                 cards={column.cardIds.map((cardId) => board.cards[cardId])}
                 onRename={handleRenameColumn}
                 onRenameCommit={handleRenameCommit}
+                onDelete={handleDeleteColumn}
                 onAddCard={handleAddCard}
                 onDeleteCard={handleDeleteCard}
                 onEditCard={handleEditCard}
               />
             ))}
+            <NewColumnForm onAdd={handleAddColumn} />
           </section>
           <DragOverlay>
             {activeCard ? (

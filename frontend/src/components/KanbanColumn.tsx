@@ -1,15 +1,18 @@
+import { useState } from "react";
 import clsx from "clsx";
 import { useDroppable } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import type { Card, Column } from "@/lib/kanban";
 import { KanbanCard } from "@/components/KanbanCard";
 import { NewCardForm } from "@/components/NewCardForm";
+import { TrashIcon } from "@/components/icons";
 
 type KanbanColumnProps = {
   column: Column;
   cards: Card[];
   onRename: (columnId: string, title: string) => void;
   onRenameCommit: (columnId: string, title: string) => void;
+  onDelete: (columnId: string) => void;
   onAddCard: (columnId: string, title: string, details: string) => void;
   onDeleteCard: (columnId: string, cardId: string) => void;
   onEditCard: (cardId: string, title: string, details: string) => void;
@@ -20,11 +23,21 @@ export const KanbanColumn = ({
   cards,
   onRename,
   onRenameCommit,
+  onDelete,
   onAddCard,
   onDeleteCard,
   onEditCard,
 }: KanbanColumnProps) => {
   const { setNodeRef, isOver } = useDroppable({ id: column.id });
+  const [confirming, setConfirming] = useState(false);
+
+  const handleDelete = () => {
+    if (cards.length === 0 || confirming) {
+      onDelete(column.id);
+    } else {
+      setConfirming(true);
+    }
+  };
 
   return (
     <section
@@ -47,6 +60,21 @@ export const KanbanColumn = ({
         <span className="shrink-0 rounded-full bg-[var(--surface)] px-2.5 py-0.5 text-xs font-semibold text-[var(--gray-text)]">
           {cards.length}
         </span>
+        <button
+          type="button"
+          onClick={handleDelete}
+          onBlur={() => setConfirming(false)}
+          aria-label={confirming ? "Confirm delete column" : "Delete column"}
+          title={confirming ? `Click again to delete ${cards.length} cards` : "Delete column"}
+          className={clsx(
+            "flex h-7 shrink-0 items-center justify-center rounded-full px-1.5 text-xs font-semibold transition",
+            confirming
+              ? "bg-red-600 text-white"
+              : "text-[var(--gray-text)] hover:text-red-600"
+          )}
+        >
+          {confirming ? "Delete?" : <TrashIcon />}
+        </button>
       </div>
       <div className="mt-4 flex flex-1 flex-col gap-2.5">
         <SortableContext items={column.cardIds} strategy={verticalListSortingStrategy}>

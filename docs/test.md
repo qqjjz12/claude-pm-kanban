@@ -8,7 +8,7 @@
 | Frontend unit (Vitest) | `cd frontend && npm run test:unit` | jsdom; the API module or `fetch` is mocked |
 | End to end (Playwright) | `cd frontend && npm run test:e2e` | Needs the container running (`scripts/start`), at http://localhost:8000 |
 
-Counts: backend 103 passing plus 2 live tests skipped without the key, frontend unit 39, end to end 14.
+Counts: backend 108 passing plus 2 live tests skipped without the key, frontend unit 72, end to end 22.
 
 ## Backend (pytest) - `backend/tests/`
 
@@ -143,6 +143,8 @@ Applying operations:
 | test_move_card_without_position_goes_to_end | A move without a position places the card at the end |
 | test_delete_card | A delete operation removes the card |
 | test_rename_column | A rename operation changes the column title |
+| test_create_column / test_delete_column_removes_its_cards / test_move_column | Column operations are applied |
+| test_column_operations_missing_fields_are_reported / test_column_operations_on_unknown_column_are_reported | Invalid column operations are skipped and reported |
 | test_multiple_operations_in_one_response | Several operations of different types in one reply are all applied |
 
 Invalid operations:
@@ -207,7 +209,15 @@ Live (skipped when `OPENROUTER_API_KEY` is not set):
 | moveCard | `POST /api/cards/{id}/move` with column and position |
 | throws on a failed response | A non-OK response raises an error |
 
-### components/AuthGate.test.tsx (`fetch` mocked, board mocked)
+### components/Workspace.test.tsx (`@/lib/api` mocked, board mocked)
+
+Loading and retry, switching boards, create (with template) / rename / delete with confirmation and error handling, blank names ignored, delete disabled for the last board, username and log out, account panel toggle.
+
+### components/AccountPanel.test.tsx (`@/lib/api` partly mocked)
+
+Change password success and error messages, delete account needs the password, wrong password keeps the session, cancel.
+
+### components/AuthGate.test.tsx (`fetch` mocked, workspace mocked; includes registration: success, mismatch, taken, validation message, offline)
 
 | Test | What it checks |
 | --- | --- |
@@ -250,6 +260,14 @@ Live (skipped when `OPENROUTER_API_KEY` is not set):
 ## End to end (Playwright) - `frontend/tests/`
 
 Run against the container with the real backend. Tests that change data create uniquely named cards and clean up afterwards.
+
+### accounts.spec.ts
+
+Register and log back in; mismatched passwords and a taken username; change password; delete account.
+
+### boards.spec.ts
+
+Create, switch, rename and delete boards (cards stay on their board); new board columns survive reload; add and delete columns with confirmation; users cannot see each other's boards.
 
 ### auth.spec.ts
 

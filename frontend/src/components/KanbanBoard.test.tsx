@@ -8,8 +8,8 @@ vi.mock("@/lib/api");
 
 const mocked = vi.mocked(api);
 
-const renderBoard = async (onLogout = () => {}) => {
-  render(<KanbanBoard onLogout={onLogout} />);
+const renderBoard = async () => {
+  render(<KanbanBoard boardId={1} header={<h1>Header</h1>} />);
   await screen.findAllByTestId(/column-/i);
 };
 
@@ -31,7 +31,7 @@ describe("KanbanBoard", () => {
   });
 
   it("shows a loading state, then five columns from the API", async () => {
-    render(<KanbanBoard onLogout={() => {}} />);
+    render(<KanbanBoard boardId={1} header={null} />);
     expect(screen.getByText(/loading board/i)).toBeInTheDocument();
     expect(await screen.findAllByTestId(/column-/i)).toHaveLength(5);
     expect(mocked.getBoard).toHaveBeenCalledOnce();
@@ -39,18 +39,50 @@ describe("KanbanBoard", () => {
 
   it("shows an error with retry when the board cannot load", async () => {
     mocked.getBoard.mockRejectedValueOnce(new Error("down"));
-    render(<KanbanBoard onLogout={() => {}} />);
+    render(<KanbanBoard boardId={1} header={null} />);
     expect(await screen.findByRole("alert")).toHaveTextContent(/could not load/i);
 
     await userEvent.click(screen.getByRole("button", { name: /retry/i }));
     expect(await screen.findAllByTestId(/column-/i)).toHaveLength(5);
   });
 
-  it("calls onLogout from the log out button", async () => {
-    const onLogout = vi.fn();
-    await renderBoard(onLogout);
-    await userEvent.click(screen.getByRole("button", { name: /log out/i }));
-    expect(onLogout).toHaveBeenCalledOnce();
+  it("renders the header slot and selects the board for API calls", async () => {
+    await renderBoard();
+    expect(screen.getByRole("heading", { name: "Header" })).toBeVisible();
+    expect(mocked.setActiveBoard).toHaveBeenCalledWith(1);
+  });
+
+  it("adds a column", async () => {
+    mocked.createColumn.mockResolvedValue({ id: "col-77", title: "Blocked", cardIds: [] });
+    await renderBoard();
+    await userEvent.click(screen.getByRole("button", { name: /add a column/i }));
+    await userEvent.type(screen.getByLabelText("New column title"), "Blocked");
+    await userEvent.click(screen.getByRole("button", { name: "Add column" }));
+    expect(await screen.findByTestId("column-col-77")).toBeVisible();
+    expect(mocked.createColumn).toHaveBeenCalledWith("Blocked");
+  });
+
+  it("deletes an empty column immediately", async () => {
+    mocked.deleteColumn.mockResolvedValue({});
+    mocked.getBoard.mockResolvedValue({
+      columns: [{ id: "col-1", title: "Empty", cardIds: [] }],
+      cards: {},
+    });
+    await renderBoard();
+    await userEvent.click(screen.getByRole("button", { name: "Delete column" }));
+    await waitFor(() => expect(screen.queryByTestId("column-col-1")).not.toBeInTheDocument());
+    expect(mocked.deleteColumn).toHaveBeenCalledWith("col-1");
+  });
+
+  it("asks twice before deleting a column that has cards", async () => {
+    mocked.deleteColumn.mockResolvedValue({});
+    await renderBoard();
+    const column = getFirstColumn();
+    await userEvent.click(within(column).getByRole("button", { name: "Delete column" }));
+    expect(mocked.deleteColumn).not.toHaveBeenCalled();
+    await userEvent.click(within(column).getByRole("button", { name: "Confirm delete column" }));
+    expect(mocked.deleteColumn).toHaveBeenCalledWith("col-backlog");
+    expect(screen.queryByText("Align roadmap themes")).not.toBeInTheDocument();
   });
 
   it("renames a column and saves on blur", async () => {

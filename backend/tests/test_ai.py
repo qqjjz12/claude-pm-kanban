@@ -146,6 +146,40 @@ def test_rename_column(client, mock_ai):
     assert data["board"]["columns"][4]["title"] == "Shipped"
 
 
+def test_create_column(client, mock_ai):
+    mock_ai(operations=[op("create_column", title="Blocked")])
+    data = chat(client).json()
+    assert data["board"]["columns"][-1]["title"] == "Blocked"
+
+
+def test_delete_column_removes_its_cards(client, mock_ai):
+    column = board_of(client)["columns"][0]
+    mock_ai(operations=[op("delete_column", column_id=column["id"])])
+    data = chat(client).json()
+    assert column["id"] not in [c["id"] for c in data["board"]["columns"]]
+    assert not set(column["cardIds"]) & set(data["board"]["cards"])
+
+
+def test_move_column(client, mock_ai):
+    column = board_of(client)["columns"][4]["id"]
+    mock_ai(operations=[op("move_column", column_id=column, position=0)])
+    assert chat(client).json()["board"]["columns"][0]["id"] == column
+
+
+def test_column_operations_missing_fields_are_reported(client, mock_ai):
+    mock_ai(operations=[op("create_column"), op("delete_column"), op("move_column", column_id="col-1")])
+    data = chat(client).json()
+    assert data["board"] is None
+    assert data["reply"].count("needs") == 3
+
+
+def test_column_operations_on_unknown_column_are_reported(client, mock_ai):
+    mock_ai(operations=[op("delete_column", column_id="col-9999")])
+    data = chat(client).json()
+    assert data["board"] is None
+    assert "delete_column" in data["reply"]
+
+
 def test_multiple_operations_in_one_response(client, mock_ai):
     board = board_of(client)
     first, second = board["columns"][0]["cardIds"]

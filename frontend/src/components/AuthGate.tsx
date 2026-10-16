@@ -1,33 +1,68 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { KanbanBoard } from "@/components/KanbanBoard";
 import { LoginForm } from "@/components/LoginForm";
+import { Workspace } from "@/components/Workspace";
 
 type AuthState = "loading" | "anonymous" | "authenticated";
 
+const readUsername = async (response: Response) => {
+  try {
+    return (await response.json()).username ?? "";
+  } catch {
+    return "";
+  }
+};
+
+const post = (url: string, body: unknown) =>
+  fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+
 export const AuthGate = () => {
   const [state, setState] = useState<AuthState>("loading");
+  const [username, setUsername] = useState("");
 
   useEffect(() => {
     fetch("/api/me")
-      .then((response) => setState(response.ok ? "authenticated" : "anonymous"))
+      .then(async (response) => {
+        if (response.ok) {
+          setUsername(await readUsername(response));
+        }
+        setState(response.ok ? "authenticated" : "anonymous");
+      })
       .catch(() => setState("anonymous"));
   }, []);
 
-  const handleLogin = async (username: string, password: string) => {
+  const handleLogin = async (name: string, password: string) => {
     try {
-      const response = await fetch("/api/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username, password }),
-      });
+      const response = await post("/api/login", { username: name, password });
       if (response.ok) {
+        setUsername((await readUsername(response)) || name);
         setState("authenticated");
       }
       return response.ok;
     } catch {
       return false;
+    }
+  };
+
+  // Resolves to an error message, or "" when the account was created.
+  const handleRegister = async (name: string, password: string) => {
+    try {
+      const response = await post("/api/register", { username: name, password });
+      if (response.ok) {
+        setUsername((await readUsername(response)) || name);
+        setState("authenticated");
+        return "";
+      }
+      return response.status === 409
+        ? "That username is already taken."
+        : "Use a username of 3-32 letters, digits, dots, dashes or underscores and a password of at least 8 characters.";
+    } catch {
+      return "Could not reach the server.";
     }
   };
 
@@ -40,7 +75,7 @@ export const AuthGate = () => {
     return null;
   }
   if (state === "anonymous") {
-    return <LoginForm onLogin={handleLogin} />;
+    return <LoginForm onLogin={handleLogin} onRegister={handleRegister} />;
   }
-  return <KanbanBoard onLogout={handleLogout} />;
+  return <Workspace username={username} onLogout={handleLogout} />;
 };

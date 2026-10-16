@@ -168,7 +168,7 @@ Success: full chat experience works end to end; AI-driven board changes appear i
 ## Part 11: Expansion (ralph loop, iterative)
 
 - [x] Iteration 1, backend: real accounts (register, scrypt passwords, change password, delete account), multiple boards per user (CRUD, templates, ownership), column add/delete/reorder, DB migration, integration tests
-- [ ] Iteration 2, frontend: register form, board switcher/creation/rename/delete, column add/delete, account menu (password, delete), AI operations for columns
+- [x] Iteration 2, frontend: register form, board switcher/creation/rename/delete, column add/delete, account panel (password, delete), AI operations for columns. Not done: dragging columns to reorder (API exists)
 - [ ] Iteration 3: card fields (priority, due date, labels), AI support
 - [ ] Iteration 4: search and filters, card detail modal
 - [ ] Iteration 5+: checklists/comments, activity log, board stats, e2e coverage for all of the above

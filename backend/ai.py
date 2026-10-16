@@ -28,6 +28,9 @@ Operation types and the fields they need (set every unused field to null):
 - move_card: card_id, column_id, position (0 is the top of the column)
 - delete_card: card_id
 - rename_column: column_id, title
+- create_column: title (the new column goes at the end)
+- delete_column: column_id (also deletes the cards in it, so only do this when asked)
+- move_column: column_id, position (0 is the leftmost)
 
 Use only the ids that appear in the board JSON below. A card you create has no id yet,
 so later operations cannot refer to it: create it directly in its final column. Cards are listed in each
@@ -43,7 +46,10 @@ DETAILS = TypeAdapter(Details)
 
 
 class Operation(BaseModel):
-    type: Literal["create_card", "edit_card", "move_card", "delete_card", "rename_column"]
+    type: Literal[
+        "create_card", "edit_card", "move_card", "delete_card", "rename_column",
+        "create_column", "delete_column", "move_column",
+    ]
     card_id: str | None
     column_id: str | None
     title: str | None
@@ -135,6 +141,15 @@ def apply_operation(conn: sqlite3.Connection, board_id: int, op: Operation) -> N
         case "rename_column":
             column_id, title = need(op, "column_id", "title")
             db.rename_column(conn, board_id, column_id, clean(TITLE, title, "title"))
+        case "create_column":
+            (title,) = need(op, "title")
+            db.create_column(conn, board_id, clean(TITLE, title, "title"))
+        case "delete_column":
+            (column_id,) = need(op, "column_id")
+            db.delete_column(conn, board_id, column_id)
+        case "move_column":
+            column_id, position = need(op, "column_id", "position")
+            db.move_column(conn, board_id, column_id, position)
 
 
 @router.post("/chat")

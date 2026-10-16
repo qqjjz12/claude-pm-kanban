@@ -6,7 +6,7 @@ test("chat shows the reply and updates the board without reload", async ({ page 
   await expect(page.getByTestId(/^column-/)).toHaveCount(5);
 
   // Mocked chat endpoint: return the current board with the first column renamed.
-  await page.route("**/api/chat", async (route) => {
+  await page.route("**/api/chat*", async (route) => {
     const board = await (await page.request.get("/api/board")).json();
     board.columns[0].title = "Renamed by AI";
     await route.fulfill({ json: { reply: "I renamed the column.", board } });
@@ -22,7 +22,7 @@ test("chat shows the reply and updates the board without reload", async ({ page 
 
 test("chat shows an error when the endpoint fails", async ({ page }) => {
   await login(page);
-  await page.route("**/api/chat", (route) =>
+  await page.route("**/api/chat*", (route) =>
     route.fulfill({ status: 502, json: { detail: "AI request failed" } })
   );
   await page.getByLabel("Chat message").fill("Hello");

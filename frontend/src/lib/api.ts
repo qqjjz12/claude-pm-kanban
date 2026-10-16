@@ -21,6 +21,13 @@ export const setActiveBoard = (id: number | null) => {
 const scoped = (url: string) =>
   activeBoard === null ? url : `${url}?board=${activeBoard}`;
 
+// Called when the server says the session is gone (expired or the account was deleted).
+let onSessionExpired: (() => void) | null = null;
+
+export const setSessionExpiredHandler = (handler: (() => void) | null) => {
+  onSessionExpired = handler;
+};
+
 const errorDetail = async (response: Response) => {
   try {
     const { detail } = await response.json();
@@ -37,7 +44,12 @@ const request = async (method: string, url: string, body?: unknown) => {
     body: body ? JSON.stringify(body) : undefined,
   });
   if (!response.ok) {
-    throw new ApiError(method, url, response.status, await errorDetail(response));
+    const detail = await errorDetail(response);
+    // A wrong password is also a 401, so only the session check's message counts.
+    if (response.status === 401 && detail === "Not authenticated") {
+      onSessionExpired?.();
+    }
+    throw new ApiError(method, url, response.status, detail);
   }
   return response.json();
 };

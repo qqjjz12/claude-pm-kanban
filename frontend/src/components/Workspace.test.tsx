@@ -154,4 +154,32 @@ describe("Workspace", () => {
     await userEvent.click(screen.getByRole("button", { name: "Close" }));
     expect(screen.queryByRole("region", { name: "Account" })).not.toBeInTheDocument();
   });
+
+  it("shows an error and keeps the board when deleting fails", async () => {
+    mocked.deleteBoard.mockRejectedValue(new Error("nope"));
+    await renderWorkspace();
+    await userEvent.click(screen.getByRole("button", { name: "Delete board" }));
+    await userEvent.click(screen.getByRole("button", { name: "Delete board" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent(/could not delete/i);
+    expect(shownBoard()).toBe("1");
+  });
+
+  it("shows an error when renaming fails", async () => {
+    mocked.renameBoard.mockRejectedValue(new Error("nope"));
+    await renderWorkspace();
+    await userEvent.click(screen.getByRole("button", { name: "Rename board" }));
+    await userEvent.type(screen.getByLabelText("Board name"), "x");
+    await userEvent.click(screen.getByRole("button", { name: "Save board" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent(/could not rename/i);
+  });
+
+  it("deleting a board other than the current one keeps the current selection", async () => {
+    mocked.deleteBoard.mockResolvedValue([{ id: 1, name: "My Board" }]);
+    await renderWorkspace();
+    await userEvent.selectOptions(screen.getByLabelText("Board"), "2");
+    await userEvent.click(screen.getByRole("button", { name: "Delete board" }));
+    await userEvent.click(screen.getByRole("button", { name: "Delete board" }));
+    await waitFor(() => expect(shownBoard()).toBe("1"));
+    expect(mocked.deleteBoard).toHaveBeenCalledWith(2);
+  });
 });

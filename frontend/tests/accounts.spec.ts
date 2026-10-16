@@ -67,3 +67,30 @@ test("delete account removes it", async ({ page }) => {
   await page.getByRole("button", { name: "Sign in" }).click();
   await expect(page.getByText("Invalid username or password.")).toBeVisible();
 });
+
+test("repeated wrong passwords lock sign in for a while", async ({ page }) => {
+  const name = uniqueName("lock");
+  await register(page, name);
+  await page.getByRole("button", { name: /log out/i }).click();
+
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    await page.getByLabel("Username").fill(name);
+    await page.getByLabel("Password").fill("wrong-password");
+    await page.getByRole("button", { name: "Sign in" }).click();
+    await expect(page.getByText("Invalid username or password.")).toBeVisible();
+  }
+  await page.getByLabel("Password").fill("e2e-password");
+  await page.getByRole("button", { name: "Sign in" }).click();
+  await expect(page.locator("form").getByRole("alert")).toContainText("Too many failed attempts");
+  await expect(page.getByRole("heading", { name: "Kanban Studio" })).toHaveCount(0);
+});
+
+test("an expired session sends the user back to sign in with a notice", async ({ page, context }) => {
+  await register(page, uniqueName("exp"));
+  await expect(page.getByTestId(/column-/)).toHaveCount(5);
+
+  await context.clearCookies();
+  await page.getByRole("navigation", { name: "Views" }).getByRole("button", { name: "Activity", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Sign in" })).toBeVisible();
+  await expect(page.getByRole("status")).toContainText("session expired");
+});

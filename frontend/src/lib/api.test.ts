@@ -234,3 +234,45 @@ describe("activity api", () => {
     expect(lastCall(fetchMock)).toMatchObject({ url: "/api/activity?board=9", method: "GET" });
   });
 });
+
+describe("session expiry", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    api.setSessionExpiredHandler(null);
+  });
+
+  const stub = (status: number, detail: string) =>
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() =>
+        Promise.resolve({ ok: false, status, json: () => Promise.resolve({ detail }) })
+      )
+    );
+
+  it("calls the handler when the session is gone", async () => {
+    const handler = vi.fn();
+    api.setSessionExpiredHandler(handler);
+    stub(401, "Not authenticated");
+    await expect(api.getBoard()).rejects.toMatchObject({ status: 401 });
+    expect(handler).toHaveBeenCalledOnce();
+  });
+
+  it("does not treat a wrong password as an expired session", async () => {
+    const handler = vi.fn();
+    api.setSessionExpiredHandler(handler);
+    stub(401, "Invalid credentials");
+    await expect(api.changePassword("x", "y")).rejects.toMatchObject({ status: 401 });
+    expect(handler).not.toHaveBeenCalled();
+  });
+
+  it("ignores other errors and works without a handler", async () => {
+    const handler = vi.fn();
+    api.setSessionExpiredHandler(handler);
+    stub(500, "Not authenticated");
+    await expect(api.getBoard()).rejects.toMatchObject({ status: 500 });
+    expect(handler).not.toHaveBeenCalled();
+    api.setSessionExpiredHandler(null);
+    stub(401, "Not authenticated");
+    await expect(api.getBoard()).rejects.toMatchObject({ status: 401 });
+  });
+});

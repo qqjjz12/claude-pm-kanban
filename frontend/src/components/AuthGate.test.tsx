@@ -1,4 +1,5 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
+import * as api from "@/lib/api";
 import userEvent from "@testing-library/user-event";
 import { AuthGate } from "@/components/AuthGate";
 
@@ -11,6 +12,21 @@ vi.mock("@/components/Workspace", () => ({
     </div>
   ),
 }));
+
+// Simulates the API layer discovering that the session is gone.
+const expireSession = () => {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(() =>
+      Promise.resolve({
+        ok: false,
+        status: 401,
+        json: () => Promise.resolve({ detail: "Not authenticated" }),
+      })
+    )
+  );
+  api.getBoard().catch(() => {});
+};
 
 const respond = (ok: boolean) => Promise.resolve({ ok } as Response);
 
@@ -161,6 +177,69 @@ describe("AuthGate", () => {
       await userEvent.click(screen.getByRole("button", { name: /have an account/i }));
       expect(screen.getByRole("heading", { name: "Sign in" })).toBeVisible();
       expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    });
+  });
+
+  describe("hardening", () => {
+    const signIn = async () => {
+      await userEvent.type(await screen.findByLabelText("Username"), "user");
+      await userEvent.type(screen.getByLabelText("Password"), "password");
+      await userEvent.click(screen.getByRole("button", { name: "Sign in" }));
+    };
+
+    it("tells the user when too many attempts were made", async () => {
+      vi.stubGlobal(
+        "fetch",
+        vi.fn((url: string) =>
+          url === "/api/login"
+            ? Promise.resolve({ ok: false, status: 429 } as Response)
+            : respond(false)
+        )
+      );
+      render(<AuthGate />);
+      await signIn();
+      expect(await screen.findByRole("alert")).toHaveTextContent(/too many failed attempts/i);
+    });
+
+    it("says the server cannot be reached rather than blaming the password", async () => {
+      vi.stubGlobal(
+        "fetch",
+        vi.fn((url: string) =>
+          url === "/api/login" ? Promise.reject(new TypeError("offline")) : respond(false)
+        )
+      );
+      render(<AuthGate />);
+      await signIn();
+      expect(await screen.findByRole("alert")).toHaveTextContent(/could not reach the server/i);
+    });
+
+    it("returns to sign in with a notice when the session expires", async () => {
+      vi.stubGlobal("fetch", vi.fn(() => respond(true)));
+      render(<AuthGate />);
+      expect(await screen.findByText("Kanban Studio")).toBeVisible();
+      act(() => expireSession());
+      expect(await screen.findByRole("heading", { name: "Sign in" })).toBeVisible();
+      expect(screen.getByRole("status")).toHaveTextContent(/session expired/i);
+    });
+
+    it("clears the notice on a fresh sign in and on log out", async () => {
+      let loggedIn = true;
+      const stateful = vi.fn((url: string) => {
+        if (url === "/api/login") loggedIn = true;
+        return respond(url === "/api/me" ? loggedIn : true);
+      });
+      vi.stubGlobal("fetch", stateful);
+      render(<AuthGate />);
+      await screen.findByText("Kanban Studio");
+      loggedIn = false;
+      act(() => expireSession());
+      await screen.findByRole("status");
+      vi.stubGlobal("fetch", stateful);
+      await signIn();
+      expect(await screen.findByText("Kanban Studio")).toBeVisible();
+      await userEvent.click(screen.getByRole("button", { name: /log out/i }));
+      expect(await screen.findByRole("heading", { name: "Sign in" })).toBeVisible();
+      expect(screen.queryByRole("status")).not.toBeInTheDocument();
     });
   });
 });

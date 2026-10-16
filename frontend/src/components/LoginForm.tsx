@@ -1,7 +1,9 @@
 import { useState, type FormEvent } from "react";
 
 type LoginFormProps = {
-  onLogin: (username: string, password: string) => Promise<boolean>;
+  // Resolve to an error message, or "" when signed in.
+  onLogin: (username: string, password: string) => Promise<string>;
+  notice?: string;
   onRegister: (username: string, password: string) => Promise<string>;
 };
 
@@ -10,7 +12,7 @@ const inputClass =
 const labelClass =
   "block text-xs font-semibold uppercase tracking-[0.2em] text-[var(--gray-text)]";
 
-export const LoginForm = ({ onLogin, onRegister }: LoginFormProps) => {
+export const LoginForm = ({ onLogin, onRegister, notice }: LoginFormProps) => {
   const [registering, setRegistering] = useState(false);
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -26,8 +28,7 @@ export const LoginForm = ({ onLogin, onRegister }: LoginFormProps) => {
       }
       setError(await onRegister(username.trim(), password));
     } else {
-      const ok = await onLogin(username, password);
-      setError(ok ? "" : "Invalid username or password.");
+      setError(await onLogin(username, password));
     }
   };
 
@@ -89,6 +90,11 @@ export const LoginForm = ({ onLogin, onRegister }: LoginFormProps) => {
               className={inputClass}
             />
           </label>
+        )}
+        {notice && !error && (
+          <p role="status" className="text-sm font-medium text-[var(--navy-dark)]">
+            {notice}
+          </p>
         )}
         {error && (
           <p role="alert" className="text-sm font-medium text-red-600">

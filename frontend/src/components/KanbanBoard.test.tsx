@@ -385,4 +385,32 @@ describe("KanbanBoard", () => {
       expect(screen.getByLabelText("Search cards")).toHaveValue("signals");
     });
   });
+
+  describe("when saving fails", () => {
+    const rename = async () => {
+      await renderBoard();
+      const input = within(getFirstColumn()).getByLabelText("Column title");
+      await userEvent.clear(input);
+      await userEvent.type(input, "Broken");
+      await userEvent.tab();
+    };
+
+    it("reloads the board and says so", async () => {
+      mocked.renameColumn.mockRejectedValue(new Error("500"));
+      await rename();
+      expect(await screen.findByRole("alert")).toHaveTextContent(/board was reloaded/i);
+      expect(within(getFirstColumn()).getByLabelText("Column title")).toHaveValue("Backlog");
+    });
+
+    it("says the server is unreachable when the reload fails too", async () => {
+      mocked.renameColumn.mockRejectedValue(new Error("down"));
+      await renderBoard();
+      mocked.getBoard.mockRejectedValue(new Error("down"));
+      const input = within(getFirstColumn()).getByLabelText("Column title");
+      await userEvent.clear(input);
+      await userEvent.type(input, "Broken");
+      await userEvent.tab();
+      expect(await screen.findByRole("alert")).toHaveTextContent(/could not reach the server/i);
+    });
+  });
 });

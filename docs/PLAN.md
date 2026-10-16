@@ -173,4 +173,5 @@ Success: full chat experience works end to end; AI-driven board changes appear i
 - [x] Iteration 4: search and filters (client-side) and board summary. A separate card detail modal was skipped: the inline edit already covers all fields
 - [x] Iteration 5: card checklists and comments in a details dialog
 - [x] Iteration 6: activity log (user and AI attributed), board dashboard
-- [ ] Iteration 7+: coverage review, hardening (session expiry, rate limiting), docs
+- [x] Iteration 7: coverage review (backend source 100%, frontend about 95%; the rest is drag handling covered by e2e), session expiry, login/password throttling, malformed cookie handling
+- [ ] Iteration 8+: final docs, README, full verification

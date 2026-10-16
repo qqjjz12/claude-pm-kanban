@@ -6,7 +6,7 @@ Next.js 16 (App Router, static export), React 19, TypeScript, Tailwind 4. Board 
 
 - `src/app/page.tsx` - renders `<AuthGate />`
 - `src/app/layout.tsx`, `globals.css` - layout, fonts, CSS variables for the color scheme
-- `src/components/AuthGate.tsx` - checks `/api/me`, shows `LoginForm` (sign in or create account) or `Workspace`; handles login/register/logout
+- `src/components/AuthGate.tsx` - when the API answers 401 "Not authenticated" (`setSessionExpiredHandler` in `api.ts`) it returns to sign in with a notice; login errors distinguish a wrong password, too many attempts (429) and an unreachable server. Checks `/api/me`, shows `LoginForm` (sign in or create account) or `Workspace`; handles login/register/logout
 - `src/components/Workspace.tsx` - header (title, `BoardControls`, account button, log out) and the selected board; owns the board list and selection. `BoardControls.tsx` is the board switcher with new/rename/delete; `AccountPanel.tsx` changes the password or deletes the account
 - `src/components/LoginForm.tsx` - username/password form with error message
 - `src/components/ChatSidebar.tsx` - collapsible right-hand AI chat; messages and loading/error state in React state; sends `{message, history}` via `api.chat` and calls `onBoardUpdate(board)` when the reply includes a board

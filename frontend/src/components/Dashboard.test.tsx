@@ -1,6 +1,6 @@
 import { render, screen, within } from "@testing-library/react";
 import { Dashboard } from "@/components/Dashboard";
-import type { BoardData } from "@/lib/kanban";
+import { today, type BoardData } from "@/lib/kanban";
 import { initialData } from "@/test/fixtures";
 
 const boardWith = (changes: Record<string, Partial<BoardData["cards"][string]>>): BoardData => {
@@ -55,5 +55,15 @@ describe("Dashboard", () => {
     render(<Dashboard board={{ columns: [], cards: {} }} />);
     expect(screen.getByText("This board has no columns.")).toBeVisible();
     expect(within(screen.getByTestId("tile-Cards")).getByText("0")).toBeVisible();
+  });
+
+  it("lists cards due within the week as upcoming", () => {
+    const soon = today(new Date(Date.now() + 2 * 24 * 60 * 60 * 1000));
+    render(<Dashboard board={boardWith({ "card-3": { dueDate: soon } })} />);
+    expect(within(screen.getByTestId("tile-Due this week")).getByText("1")).toBeVisible();
+    const attention = screen.getByRole("list", { name: "Needs attention" });
+    expect(within(attention).getByText("Prototype analytics view")).toBeVisible();
+    expect(within(attention).getByText(/^Due /)).toBeVisible();
+    expect(within(screen.getByTestId("tile-Overdue")).getByText("0")).toBeVisible();
   });
 });

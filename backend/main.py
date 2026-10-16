@@ -8,11 +8,13 @@ from fastapi.staticfiles import StaticFiles
 import db
 from ai import router as ai_router
 from auth import router as auth_router
+from auth import warn_if_default_secret
 from board import router as board_router
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    warn_if_default_secret()
     db.init_db()
     yield
 

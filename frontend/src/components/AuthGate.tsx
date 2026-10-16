@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { setSessionExpiredHandler } from "@/lib/api";
 import { LoginForm } from "@/components/LoginForm";
 import { Workspace } from "@/components/Workspace";
 
@@ -24,6 +25,7 @@ const post = (url: string, body: unknown) =>
 export const AuthGate = () => {
   const [state, setState] = useState<AuthState>("loading");
   const [username, setUsername] = useState("");
+  const [notice, setNotice] = useState("");
 
   useEffect(() => {
     fetch("/api/me")
@@ -36,16 +38,29 @@ export const AuthGate = () => {
       .catch(() => setState("anonymous"));
   }, []);
 
+  useEffect(() => {
+    setSessionExpiredHandler(() => {
+      setNotice("Your session expired. Please sign in again.");
+      setState("anonymous");
+    });
+    return () => setSessionExpiredHandler(null);
+  }, []);
+
+  // Resolves to an error message, or "" when signed in.
   const handleLogin = async (name: string, password: string) => {
     try {
       const response = await post("/api/login", { username: name, password });
       if (response.ok) {
         setUsername((await readUsername(response)) || name);
+        setNotice("");
         setState("authenticated");
+        return "";
       }
-      return response.ok;
+      return response.status === 429
+        ? "Too many failed attempts. Please try again in a few minutes."
+        : "Invalid username or password.";
     } catch {
-      return false;
+      return "Could not reach the server.";
     }
   };
 
@@ -68,6 +83,7 @@ export const AuthGate = () => {
 
   const handleLogout = async () => {
     await fetch("/api/logout", { method: "POST" }).catch(() => {});
+    setNotice("");
     setState("anonymous");
   };
 
@@ -75,7 +91,7 @@ export const AuthGate = () => {
     return null;
   }
   if (state === "anonymous") {
-    return <LoginForm onLogin={handleLogin} onRegister={handleRegister} />;
+    return <LoginForm onLogin={handleLogin} onRegister={handleRegister} notice={notice} />;
   }
   return <Workspace username={username} onLogout={handleLogout} />;
 };

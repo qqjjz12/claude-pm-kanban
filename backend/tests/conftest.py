@@ -1,9 +1,17 @@
 import pytest
 from fastapi.testclient import TestClient
 
+import auth
 import db
 from auth import sign
 from main import app
+
+
+@pytest.fixture(autouse=True)
+def fresh_throttle():
+    auth.reset_throttle()
+    yield
+    auth.reset_throttle()
 
 
 @pytest.fixture

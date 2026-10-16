@@ -60,3 +60,25 @@ def test_init_db_is_idempotent_and_keeps_changed_demo_password(db_path):
     conn = db.connect()
     assert db.verify_password("changed-pass", db.find_user(conn, "user")["password_hash"])
     conn.close()
+
+
+def test_demo_user_without_a_password_gets_one(db_path):
+    db.init_db()
+    conn = db.connect()
+    conn.execute("UPDATE users SET password_hash = NULL WHERE username = ?", (db.DEMO_USER,))
+    conn.commit()
+    conn.close()
+    db.init_db()
+    conn = db.connect()
+    assert db.verify_password(db.DEMO_PASSWORD, db.find_user(conn, db.DEMO_USER)["password_hash"])
+    conn.close()
+
+
+def test_ensure_board_for_unknown_user_is_not_found(db_path):
+    import pytest
+
+    db.init_db()
+    conn = db.connect()
+    with pytest.raises(LookupError):
+        db.ensure_board(conn, "ghost")
+    conn.close()

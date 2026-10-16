@@ -1,7 +1,8 @@
-from typing import Annotated
+from datetime import date
+from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from pydantic import BaseModel, StringConstraints
+from pydantic import AfterValidator, BaseModel, Field, StringConstraints
 
 import db
 from auth import current_user
@@ -13,6 +14,31 @@ Title = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, ma
 Details = Annotated[str, StringConstraints(strip_whitespace=True, max_length=5000)]
 
 
+def _check_date(value: str) -> str:
+    if value:
+        date.fromisoformat(value)  # ValueError becomes a 422
+    return value
+
+
+def _clean_labels(labels: list[str]) -> list[str]:
+    seen = set()
+    cleaned = []
+    for label in labels:
+        label = label.strip()
+        if not 0 < len(label) <= 30:
+            raise ValueError("labels must be 1 to 30 characters")
+        if label.lower() not in seen:
+            seen.add(label.lower())
+            cleaned.append(label)
+    return cleaned
+
+
+Priority = Literal["none", "low", "medium", "high"]
+# "" clears the due date.
+DueDate = Annotated[str, StringConstraints(pattern=r"^(\d{4}-\d{2}-\d{2})?$"), AfterValidator(_check_date)]
+Labels = Annotated[list[str], Field(max_length=10), AfterValidator(_clean_labels)]
+
+
 class ColumnUpdate(BaseModel):
     title: Title
 
@@ -21,11 +47,18 @@ class CardCreate(BaseModel):
     column_id: str
     title: Title
     details: Details = ""
+    priority: Priority = "none"
+    due_date: DueDate | None = None
+    labels: Labels = Field(default_factory=list)
 
 
 class CardUpdate(BaseModel):
     title: Title
     details: Details = ""
+    # Omitted fields keep their current value.
+    priority: Priority | None = None
+    due_date: DueDate | None = None
+    labels: Labels | None = None
 
 
 class CardMove(BaseModel):
@@ -155,7 +188,10 @@ def rename_column(
 def create_card(
     body: CardCreate, board_id: int = Depends(get_board_id), conn=Depends(get_conn, scope="function")
 ):
-    return db.create_card(conn, board_id, body.column_id, body.title, body.details)
+    return db.create_card(
+        conn, board_id, body.column_id, body.title, body.details,
+        body.priority, body.due_date, body.labels,
+    )
 
 
 @router.put("/cards/{card_id}")
@@ -165,7 +201,10 @@ def update_card(
     board_id: int = Depends(get_board_id),
     conn=Depends(get_conn, scope="function"),
 ):
-    db.update_card(conn, board_id, card_id, body.title, body.details)
+    db.update_card(
+        conn, board_id, card_id, body.title, body.details,
+        body.priority, body.due_date, body.labels,
+    )
     return db.fetch_board(conn, board_id)
 
 

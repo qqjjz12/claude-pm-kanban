@@ -113,7 +113,7 @@ describe("KanbanBoard with chat", () => {
     changed.columns[0].title = "Renamed by AI";
     mocked.chat.mockResolvedValue({ reply: "Renamed it", board: changed });
 
-    render(<KanbanBoard onLogout={() => {}} />);
+    render(<KanbanBoard boardId={1} header={null} />);
     await screen.findAllByTestId(/column-/i);
     await send("Rename the first column");
 
@@ -128,7 +128,7 @@ describe("KanbanBoard with chat", () => {
     changed.cards["card-1"].title = "AI renamed";
     mocked.chat.mockResolvedValue({ reply: "Done", board: changed });
 
-    render(<KanbanBoard onLogout={() => {}} />);
+    render(<KanbanBoard boardId={1} header={null} />);
     await screen.findAllByTestId(/column-/i);
     await send("Rename the first card");
     await screen.findByText("AI renamed");

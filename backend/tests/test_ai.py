@@ -13,7 +13,8 @@ from main import app
 
 
 def op(type, **fields):
-    base = dict(card_id=None, column_id=None, title=None, details=None, position=None)
+    base = dict(card_id=None, column_id=None, title=None, details=None, position=None,
+                priority=None, due_date=None, labels=None)
     return Operation(type=type, **{**base, **fields})
 
 
@@ -110,6 +111,9 @@ def test_edit_card(client, mock_ai):
         "id": card_id,
         "title": "New title",
         "details": "New details",
+        "priority": "none",
+        "dueDate": None,
+        "labels": [],
     }
 
 

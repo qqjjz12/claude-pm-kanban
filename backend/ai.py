@@ -8,7 +8,7 @@ from openai import OpenAI, OpenAIError
 from pydantic import BaseModel, Field, TypeAdapter, ValidationError
 
 import db
-from board import Details, Title, get_board_id, get_conn
+from board import Details, DueDate, Labels, Priority, Title, get_board_id, get_conn
 
 MODEL = "openai/gpt-oss-120b"
 TIMEOUT_SECONDS = 60
@@ -23,14 +23,18 @@ Each reply has:
   the user did not ask for a change. Only change what the user asked for.
 
 Operation types and the fields they need (set every unused field to null):
-- create_card: column_id, title, details
-- edit_card: card_id, title, details (the full new values; keep the old value of a field you are not changing)
+- create_card: column_id, title, details, and optionally priority, due_date, labels
+- edit_card: card_id, title, details (the full new values; keep the old value of a field you are not changing),
+  and optionally priority, due_date, labels (null leaves them unchanged)
 - move_card: card_id, column_id, position (0 is the top of the column)
 - delete_card: card_id
 - rename_column: column_id, title
 - create_column: title (the new column goes at the end)
 - delete_column: column_id (also deletes the cards in it, so only do this when asked)
 - move_column: column_id, position (0 is the leftmost)
+
+priority is one of none, low, medium, high. due_date is YYYY-MM-DD, or an empty string to clear it.
+labels is the full list of short label strings for the card (at most 10).
 
 Use only the ids that appear in the board JSON below. A card you create has no id yet,
 so later operations cannot refer to it: create it directly in its final column. Cards are listed in each
@@ -42,6 +46,9 @@ Current board:
 router = APIRouter(prefix="/api")
 
 TITLE = TypeAdapter(Title)
+PRIORITY = TypeAdapter(Priority)
+DUE_DATE = TypeAdapter(DueDate)
+LABELS = TypeAdapter(Labels)
 DETAILS = TypeAdapter(Details)
 
 
@@ -55,6 +62,9 @@ class Operation(BaseModel):
     title: str | None
     details: str | None
     position: int | None
+    priority: str | None
+    due_date: str | None
+    labels: list[str] | None
 
 
 class AIResponse(BaseModel):
@@ -111,11 +121,23 @@ def need(op: Operation, *fields: str):
     return values
 
 
-def clean(adapter: TypeAdapter, value: str, name: str) -> str:
+def clean(adapter: TypeAdapter, value, name: str):
     try:
         return adapter.validate_python(value)
     except ValidationError:
         raise ValueError(f"invalid {name}")
+
+
+def extra_fields(op: Operation) -> dict:
+    """Validated priority, due_date and labels for the fields the model set."""
+    fields = {}
+    if op.priority is not None:
+        fields["priority"] = clean(PRIORITY, op.priority, "priority")
+    if op.due_date is not None:
+        fields["due_date"] = clean(DUE_DATE, op.due_date, "due_date")
+    if op.labels is not None:
+        fields["labels"] = clean(LABELS, op.labels, "labels")
+    return fields
 
 
 def apply_operation(conn: sqlite3.Connection, board_id: int, op: Operation) -> None:
@@ -125,12 +147,14 @@ def apply_operation(conn: sqlite3.Connection, board_id: int, op: Operation) -> N
             db.create_card(
                 conn, board_id, column_id,
                 clean(TITLE, title, "title"), clean(DETAILS, op.details or "", "details"),
+                **extra_fields(op),
             )
         case "edit_card":
             card_id, title, details = need(op, "card_id", "title", "details")
             db.update_card(
                 conn, board_id, card_id,
                 clean(TITLE, title, "title"), clean(DETAILS, details, "details"),
+                **extra_fields(op),
             )
         case "move_card":
             card_id, column_id = need(op, "card_id", "column_id")

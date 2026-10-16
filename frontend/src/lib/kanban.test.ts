@@ -1,4 +1,4 @@
-import { moveCard, type Column } from "@/lib/kanban";
+import { formatDueDate, isOverdue, moveCard, parseLabels, today, type Column } from "@/lib/kanban";
 
 describe("moveCard", () => {
   const baseColumns: Column[] = [
@@ -48,5 +48,32 @@ describe("moveCard edge cases", () => {
   it("moves to the end of the same column when dropped on it", () => {
     const result = moveCard(columns, "card-1", "col-a");
     expect(result[0].cardIds).toEqual(["card-2", "card-1"]);
+  });
+});
+
+describe("card field helpers", () => {
+  it("parseLabels trims, drops blanks, dedupes ignoring case and caps the list", () => {
+    expect(parseLabels(" bug , UI,, bug,ui ")).toEqual(["bug", "UI"]);
+    expect(parseLabels("")).toEqual([]);
+    expect(parseLabels(Array.from({ length: 15 }, (_, i) => `l${i}`).join(","))).toHaveLength(10);
+    expect(parseLabels("x".repeat(40))[0]).toHaveLength(30);
+  });
+
+  it("today formats a local date as YYYY-MM-DD", () => {
+    expect(today(new Date(2030, 0, 5))).toBe("2030-01-05");
+    expect(today(new Date(2030, 11, 25))).toBe("2030-12-25");
+  });
+
+  it("isOverdue is true only for dates before today", () => {
+    const now = new Date(2030, 5, 15);
+    expect(isOverdue("2030-06-14", now)).toBe(true);
+    expect(isOverdue("2030-06-15", now)).toBe(false);
+    expect(isOverdue("2030-06-16", now)).toBe(false);
+    expect(isOverdue(null, now)).toBe(false);
+  });
+
+  it("formatDueDate does not shift the day across time zones", () => {
+    expect(formatDueDate("2030-01-05")).toContain("5");
+    expect(formatDueDate("2030-01-05")).toContain("2030");
   });
 });

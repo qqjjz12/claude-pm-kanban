@@ -1,23 +1,32 @@
 import { useState, type FormEvent } from "react";
+import { CardFieldsEditor, type FieldsDraft } from "@/components/CardFieldsEditor";
 import { PlusIcon } from "@/components/icons";
+import { parseLabels, type CardFields } from "@/lib/kanban";
 
 const initialFormState = { title: "", details: "" };
+const initialFields: FieldsDraft = { priority: "none", dueDate: "", labels: "" };
 
 type NewCardFormProps = {
-  onAdd: (title: string, details: string) => void;
+  onAdd: (title: string, details: string, fields: CardFields) => void;
 };
 
 export const NewCardForm = ({ onAdd }: NewCardFormProps) => {
   const [isOpen, setIsOpen] = useState(false);
   const [formState, setFormState] = useState(initialFormState);
+  const [fields, setFields] = useState<FieldsDraft>(initialFields);
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!formState.title.trim()) {
       return;
     }
-    onAdd(formState.title.trim(), formState.details.trim());
+    onAdd(formState.title.trim(), formState.details.trim(), {
+      priority: fields.priority,
+      dueDate: fields.dueDate || null,
+      labels: parseLabels(fields.labels),
+    });
     setFormState(initialFormState);
+    setFields(initialFields);
     setIsOpen(false);
   };
 
@@ -43,6 +52,7 @@ export const NewCardForm = ({ onAdd }: NewCardFormProps) => {
             rows={3}
             className="w-full resize-none rounded-xl border border-[var(--stroke)] bg-white px-3 py-2 text-sm text-[var(--gray-text)] outline-none transition focus:border-[var(--primary-blue)]"
           />
+          <CardFieldsEditor value={fields} onChange={setFields} idPrefix="new" />
           <div className="flex items-center gap-2">
             <button
               type="submit"
@@ -55,6 +65,7 @@ export const NewCardForm = ({ onAdd }: NewCardFormProps) => {
               onClick={() => {
                 setIsOpen(false);
                 setFormState(initialFormState);
+                setFields(initialFields);
               }}
               className="rounded-full border border-[var(--stroke)] px-3 py-2 text-xs font-semibold uppercase tracking-wide text-[var(--gray-text)] transition hover:text-[var(--navy-dark)]"
             >

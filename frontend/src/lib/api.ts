@@ -1,4 +1,4 @@
-import type { BoardData, Card, Column } from "@/lib/kanban";
+import type { BoardData, Card, CardFields, Column } from "@/lib/kanban";
 
 export class ApiError extends Error {
   status: number;
@@ -72,15 +72,37 @@ export const deleteColumn = (columnId: string) =>
 export const moveColumn = (columnId: string, position: number) =>
   request("POST", scoped(`/api/columns/${columnId}/move`), { position });
 
+const fieldsBody = (fields?: CardFields) =>
+  fields && {
+    priority: fields.priority,
+    due_date: fields.dueDate ?? "",
+    labels: fields.labels,
+  };
+
 export const createCard = (
   columnId: string,
   title: string,
-  details: string
+  details: string,
+  fields?: CardFields
 ): Promise<Card> =>
-  request("POST", scoped("/api/cards"), { column_id: columnId, title, details });
+  request("POST", scoped("/api/cards"), {
+    column_id: columnId,
+    title,
+    details,
+    ...fieldsBody(fields),
+  });
 
-export const updateCard = (cardId: string, title: string, details: string) =>
-  request("PUT", scoped(`/api/cards/${cardId}`), { title, details });
+export const updateCard = (
+  cardId: string,
+  title: string,
+  details: string,
+  fields?: CardFields
+) =>
+  request("PUT", scoped(`/api/cards/${cardId}`), {
+    title,
+    details,
+    ...fieldsBody(fields),
+  });
 
 export const deleteCard = (cardId: string) =>
   request("DELETE", scoped(`/api/cards/${cardId}`));

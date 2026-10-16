@@ -1,7 +1,51 @@
-export type Card = {
+export type Priority = "none" | "low" | "medium" | "high";
+
+export const PRIORITIES: Priority[] = ["none", "low", "medium", "high"];
+
+export type CardFields = {
+  priority: Priority;
+  dueDate: string | null;
+  labels: string[];
+};
+
+export type Card = CardFields & {
   id: string;
   title: string;
   details: string;
+};
+
+export const NO_FIELDS: CardFields = { priority: "none", dueDate: null, labels: [] };
+
+// "bug, UI,, bug" -> ["bug", "UI"]: trimmed, no blanks, no repeats ignoring case, at most 10.
+export const parseLabels = (text: string): string[] => {
+  const seen = new Set<string>();
+  const labels: string[] = [];
+  for (const part of text.split(",")) {
+    const label = part.trim().slice(0, 30);
+    if (label && !seen.has(label.toLowerCase())) {
+      seen.add(label.toLowerCase());
+      labels.push(label);
+    }
+  }
+  return labels.slice(0, 10);
+};
+
+const pad = (n: number) => String(n).padStart(2, "0");
+
+export const today = (now = new Date()) =>
+  `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+
+// Dates are YYYY-MM-DD strings, so they compare correctly as text.
+export const isOverdue = (dueDate: string | null, now = new Date()) =>
+  dueDate !== null && dueDate < today(now);
+
+export const formatDueDate = (dueDate: string) => {
+  const [year, month, day] = dueDate.split("-").map(Number);
+  return new Date(year, month - 1, day).toLocaleDateString(undefined, {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
 };
 
 export type Column = {

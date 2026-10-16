@@ -38,7 +38,9 @@ def test_old_database_is_upgraded_in_place(db_path):
 
     conn = db.connect()
     assert conn.execute("PRAGMA foreign_key_check").fetchall() == []
-    assert db.fetch_board(conn, 1)["cards"]["card-1"]["title"] == "Keep me"
+    card = db.fetch_board(conn, 1)["cards"]["card-1"]
+    assert card["title"] == "Keep me"
+    assert (card["priority"], card["dueDate"], card["labels"]) == ("none", None, [])
     # Multiple boards per user are now possible and the demo account exists.
     db.create_board(conn, 1, "Second")
     assert len(db.list_boards(conn, 1)) == 2

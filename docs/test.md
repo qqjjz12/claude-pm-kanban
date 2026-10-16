@@ -8,7 +8,7 @@
 | Frontend unit (Vitest) | `cd frontend && npm run test:unit` | jsdom; the API module or `fetch` is mocked |
 | End to end (Playwright) | `cd frontend && npm run test:e2e` | Needs the container running (`scripts/start`), at http://localhost:8000 |
 
-Counts: backend 108 passing plus 2 live tests skipped without the key, frontend unit 72, end to end 22.
+Counts: backend 131 passing plus 2 live tests skipped without the key, frontend unit 80, end to end 24.
 
 ## Backend (pytest) - `backend/tests/`
 
@@ -54,6 +54,17 @@ Counts: backend 108 passing plus 2 live tests skipped without the key, frontend 
 | test_delete_column_removes_cards_and_keeps_order_contiguous / test_delete_unknown_column_is_404 | Delete cascades and positions stay contiguous |
 | test_move_column* | Reorder, clamping, cards preserved |
 | test_cannot_touch_other_users_columns | Ownership |
+
+### test_card_fields.py
+
+| Test | What it checks |
+| --- | --- |
+| test_new_card_has_defaults / test_create_card_with_fields | priority `none`, no due date, no labels by default; fields round-trip |
+| test_create_card_rejects_invalid_fields | Bad priority, impossible or badly formatted dates, too many / blank / long labels, wrong types are 422 |
+| test_labels_are_trimmed_and_deduplicated_ignoring_case / test_ten_labels_are_allowed | Label normalisation and limit |
+| test_update_* | Update sets fields, omitted fields are kept, `""` / `[]` / `none` clear them, invalid values are 422 |
+| test_move_keeps_fields | Moving a card does not lose its fields |
+| test_ai_* | The AI can set fields on create and edit, edits change only given fields, can clear a due date, invalid values are skipped and reported |
 
 ### test_migration.py
 
@@ -209,6 +220,10 @@ Live (skipped when `OPENROUTER_API_KEY` is not set):
 | moveCard | `POST /api/cards/{id}/move` with column and position |
 | throws on a failed response | A non-OK response raises an error |
 
+### lib/kanban.test.ts (card field helpers)
+
+`parseLabels`, `today`, `isOverdue`, `formatDueDate`. KanbanBoard tests also cover adding a card with fields, badges and editing/clearing fields.
+
 ### components/Workspace.test.tsx (`@/lib/api` mocked, board mocked)
 
 Loading and retry, switching boards, create (with template) / rename / delete with confirmation and error handling, blank names ignored, delete disabled for the last board, username and log out, account panel toggle.
@@ -260,6 +275,10 @@ Change password success and error messages, delete account needs the password, w
 ## End to end (Playwright) - `frontend/tests/`
 
 Run against the container with the real backend. Tests that change data create uniquely named cards and clean up afterwards.
+
+### card-fields.spec.ts
+
+Priority, due date (overdue badge) and labels persist across reload; edit and clear them.
 
 ### accounts.spec.ts
 

@@ -1,5 +1,6 @@
 import hashlib
 import hmac
+import json
 import os
 import re
 import secrets
@@ -30,7 +31,10 @@ CREATE TABLE IF NOT EXISTS cards (
     column_id INTEGER NOT NULL REFERENCES columns(id) ON DELETE CASCADE,
     title TEXT NOT NULL,
     details TEXT NOT NULL DEFAULT '',
-    position INTEGER NOT NULL
+    position INTEGER NOT NULL,
+    priority TEXT NOT NULL DEFAULT 'none',
+    due_date TEXT,
+    labels TEXT NOT NULL DEFAULT '[]'
 );
 CREATE INDEX IF NOT EXISTS idx_cards_column ON cards(column_id, position);
 """
@@ -61,6 +65,8 @@ TEMPLATES = {
     "sample": DEFAULT_BOARD,
     "empty": [],
 }
+
+PRIORITIES = ("none", "low", "medium", "high")
 
 DEMO_USER = "user"
 DEMO_PASSWORD = "password"
@@ -115,6 +121,14 @@ def _migrate(conn: sqlite3.Connection) -> None:
     """Upgrade databases created before accounts and multiple boards existed."""
     if "password_hash" not in {r["name"] for r in conn.execute("PRAGMA table_info(users)")}:
         conn.execute("ALTER TABLE users ADD COLUMN password_hash TEXT")
+    card_columns = {r["name"] for r in conn.execute("PRAGMA table_info(cards)")}
+    for name, definition in [
+        ("priority", "TEXT NOT NULL DEFAULT 'none'"),
+        ("due_date", "TEXT"),
+        ("labels", "TEXT NOT NULL DEFAULT '[]'"),
+    ]:
+        if name not in card_columns:
+            conn.execute(f"ALTER TABLE cards ADD COLUMN {name} {definition}")
     # boards.user_id used to be UNIQUE (one board per user); SQLite cannot drop that, so rebuild.
     if any(r["unique"] for r in conn.execute("PRAGMA index_list(boards)")):
         conn.executescript(
@@ -243,6 +257,17 @@ def delete_board(conn: sqlite3.Connection, user_id: int, board_id: int) -> None:
     conn.execute("DELETE FROM boards WHERE id = ?", (board_id,))
 
 
+def _card_dict(row: sqlite3.Row) -> dict:
+    return {
+        "id": f"card-{row['id']}",
+        "title": row["title"],
+        "details": row["details"],
+        "priority": row["priority"],
+        "dueDate": row["due_date"],
+        "labels": json.loads(row["labels"]),
+    }
+
+
 def fetch_board(conn: sqlite3.Connection, board_id: int) -> dict:
     columns = []
     cards = {}
@@ -252,16 +277,12 @@ def fetch_board(conn: sqlite3.Connection, board_id: int) -> dict:
     ):
         card_ids = []
         for card in conn.execute(
-            "SELECT id, title, details FROM cards WHERE column_id = ? ORDER BY position",
+            "SELECT * FROM cards WHERE column_id = ? ORDER BY position",
             (col["id"],),
         ):
-            card_id = f"card-{card['id']}"
-            card_ids.append(card_id)
-            cards[card_id] = {
-                "id": card_id,
-                "title": card["title"],
-                "details": card["details"],
-            }
+            data = _card_dict(card)
+            card_ids.append(data["id"])
+            cards[data["id"]] = data
         columns.append({"id": f"col-{col['id']}", "title": col["title"], "cardIds": card_ids})
     return {"columns": columns, "cards": cards}
 
@@ -355,25 +376,47 @@ def move_column(conn: sqlite3.Connection, board_id: int, column_id: str, positio
 
 
 def create_card(
-    conn: sqlite3.Connection, board_id: int, column_id: str, title: str, details: str
+    conn: sqlite3.Connection,
+    board_id: int,
+    column_id: str,
+    title: str,
+    details: str,
+    priority: str = "none",
+    due_date: str | None = None,
+    labels: list[str] | None = None,
 ) -> dict:
     col_pk = _require_column(conn, board_id, column_id)
     position = len(_card_ids(conn, col_pk))
     pk = conn.execute(
-        "INSERT INTO cards (column_id, title, details, position) VALUES (?, ?, ?, ?)",
-        (col_pk, title, details, position),
+        "INSERT INTO cards (column_id, title, details, position, priority, due_date, labels) "
+        "VALUES (?, ?, ?, ?, ?, ?, ?)",
+        (col_pk, title, details, position, priority, due_date or None, json.dumps(labels or [])),
     ).lastrowid
-    return {"id": f"card-{pk}", "title": title, "details": details}
+    return _card_dict(conn.execute("SELECT * FROM cards WHERE id = ?", (pk,)).fetchone())
 
 
 def update_card(
-    conn: sqlite3.Connection, board_id: int, card_id: str, title: str, details: str
+    conn: sqlite3.Connection,
+    board_id: int,
+    card_id: str,
+    title: str,
+    details: str,
+    priority: str | None = None,
+    due_date: str | None = None,
+    labels: list[str] | None = None,
 ) -> None:
+    """Replace title and details. priority, due_date and labels are left alone when None;
+    an empty due_date clears it."""
     card = _require_card(conn, board_id, card_id)
     conn.execute(
-        "UPDATE cards SET title = ?, details = ? WHERE id = ?",
-        (title, details, card["id"]),
+        "UPDATE cards SET title = ?, details = ? WHERE id = ?", (title, details, card["id"])
     )
+    if priority is not None:
+        conn.execute("UPDATE cards SET priority = ? WHERE id = ?", (priority, card["id"]))
+    if due_date is not None:
+        conn.execute("UPDATE cards SET due_date = ? WHERE id = ?", (due_date or None, card["id"]))
+    if labels is not None:
+        conn.execute("UPDATE cards SET labels = ? WHERE id = ?", (json.dumps(labels), card["id"]))
 
 
 def delete_card(conn: sqlite3.Connection, board_id: int, card_id: str) -> None:

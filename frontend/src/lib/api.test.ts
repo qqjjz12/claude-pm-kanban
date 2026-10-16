@@ -168,4 +168,26 @@ describe("api", () => {
     );
     await expect(api.getBoard()).rejects.toMatchObject({ status: 502, detail: "" });
   });
+
+  it("sends card fields with snake_case names, clearing a missing due date", async () => {
+    const fetchMock = stubFetch();
+    await api.createCard("col-1", "T", "D", { priority: "high", dueDate: "2030-01-02", labels: ["x"] });
+    expect(lastCall(fetchMock).body).toEqual({
+      column_id: "col-1",
+      title: "T",
+      details: "D",
+      priority: "high",
+      due_date: "2030-01-02",
+      labels: ["x"],
+    });
+    fetchMock.mockClear();
+    await api.updateCard("card-1", "T", "D", { priority: "none", dueDate: null, labels: [] });
+    expect(lastCall(fetchMock).body).toEqual({
+      title: "T",
+      details: "D",
+      priority: "none",
+      due_date: "",
+      labels: [],
+    });
+  });
 });

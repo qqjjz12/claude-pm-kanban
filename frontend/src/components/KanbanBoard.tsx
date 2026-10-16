@@ -16,7 +16,7 @@ import { KanbanColumn } from "@/components/KanbanColumn";
 import { KanbanCardPreview } from "@/components/KanbanCardPreview";
 import { NewColumnForm } from "@/components/NewColumnForm";
 import * as api from "@/lib/api";
-import { moveCard, type BoardData } from "@/lib/kanban";
+import { moveCard, type BoardData, type CardFields } from "@/lib/kanban";
 
 type KanbanBoardProps = {
   boardId: number;
@@ -148,9 +148,14 @@ export const KanbanBoard = ({ boardId, header, notice }: KanbanBoardProps) => {
     persist(() => api.deleteColumn(columnId));
   };
 
-  const handleAddCard = (columnId: string, title: string, details: string) => {
+  const handleAddCard = (
+    columnId: string,
+    title: string,
+    details: string,
+    fields: CardFields
+  ) => {
     persist(async () => {
-      const card = await api.createCard(columnId, title, details);
+      const card = await api.createCard(columnId, title, details, fields);
       setBoard((prev) =>
         prev && {
           ...prev,
@@ -165,12 +170,17 @@ export const KanbanBoard = ({ boardId, header, notice }: KanbanBoardProps) => {
     });
   };
 
-  const handleEditCard = (cardId: string, title: string, details: string) => {
+  const handleEditCard = (
+    cardId: string,
+    title: string,
+    details: string,
+    fields: CardFields
+  ) => {
     setBoard({
       ...board,
-      cards: { ...board.cards, [cardId]: { id: cardId, title, details } },
+      cards: { ...board.cards, [cardId]: { id: cardId, title, details, ...fields } },
     });
-    persist(() => api.updateCard(cardId, title, details));
+    persist(() => api.updateCard(cardId, title, details, fields));
   };
 
   const handleDeleteCard = (columnId: string, cardId: string) => {

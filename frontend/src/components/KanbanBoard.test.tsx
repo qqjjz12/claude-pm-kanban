@@ -27,6 +27,9 @@ describe("KanbanBoard", () => {
       id: "card-99",
       title: "New card",
       details: "Notes",
+      priority: "none",
+      dueDate: null,
+      labels: [],
     });
   });
 
@@ -112,7 +115,8 @@ describe("KanbanBoard", () => {
     expect(mocked.createCard).toHaveBeenCalledExactlyOnceWith(
       "col-backlog",
       "New card",
-      "Notes"
+      "Notes",
+      { priority: "none", dueDate: null, labels: [] }
     );
     expect(within(column).getByTestId("card-card-99")).toBeInTheDocument();
   });
@@ -154,7 +158,8 @@ describe("KanbanBoard", () => {
     expect(mocked.updateCard).toHaveBeenCalledExactlyOnceWith(
       "card-1",
       "Renamed card",
-      "Draft quarterly themes with impact statements and metrics."
+      "Draft quarterly themes with impact statements and metrics.",
+      { priority: "none", dueDate: null, labels: [] }
     );
   });
 
@@ -182,5 +187,68 @@ describe("KanbanBoard", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent(/could not save/i);
     await waitFor(() => expect(mocked.getBoard).toHaveBeenCalledTimes(2));
     expect(within(getFirstColumn()).getByText("Align roadmap themes")).toBeInTheDocument();
+  });
+
+  it("adds a card with priority, due date and labels", async () => {
+    await renderBoard();
+    const column = getFirstColumn();
+    await userEvent.click(within(column).getByRole("button", { name: /add a card/i }));
+    await userEvent.type(within(column).getByPlaceholderText(/card title/i), "New card");
+    await userEvent.selectOptions(within(column).getByLabelText("Priority"), "high");
+    await userEvent.type(within(column).getByLabelText("Due date"), "2030-05-06");
+    await userEvent.type(within(column).getByLabelText("Labels"), "bug, UI, bug");
+    await userEvent.click(within(column).getByRole("button", { name: /add card/i }));
+
+    expect(mocked.createCard).toHaveBeenCalledExactlyOnceWith("col-backlog", "New card", "", {
+      priority: "high",
+      dueDate: "2030-05-06",
+      labels: ["bug", "UI"],
+    });
+  });
+
+  it("shows badges for a card with fields", async () => {
+    const data = structuredClone(initialData);
+    data.cards["card-1"] = {
+      ...data.cards["card-1"],
+      priority: "high",
+      dueDate: "2000-01-01",
+      labels: ["urgent-fix"],
+    };
+    mocked.getBoard.mockResolvedValue(data);
+    await renderBoard();
+    const card = within(getFirstColumn()).getByTestId("card-card-1");
+    expect(within(card).getByText("high")).toBeVisible();
+    expect(within(card).getByText(/overdue/i)).toBeVisible();
+    expect(within(card).getByText("urgent-fix")).toBeVisible();
+  });
+
+  it("edits the fields of a card and can clear them", async () => {
+    const data = structuredClone(initialData);
+    data.cards["card-1"] = {
+      ...data.cards["card-1"],
+      priority: "low",
+      dueDate: "2030-01-01",
+      labels: ["a"],
+    };
+    mocked.getBoard.mockResolvedValue(data);
+    await renderBoard();
+    const column = getFirstColumn();
+    await userEvent.click(
+      within(column).getByRole("button", { name: /edit align roadmap themes/i })
+    );
+    expect(within(column).getByLabelText("Priority")).toHaveValue("low");
+    expect(within(column).getByLabelText("Due date")).toHaveValue("2030-01-01");
+    expect(within(column).getByLabelText("Labels")).toHaveValue("a");
+
+    await userEvent.selectOptions(within(column).getByLabelText("Priority"), "none");
+    await userEvent.clear(within(column).getByLabelText("Due date"));
+    await userEvent.clear(within(column).getByLabelText("Labels"));
+    await userEvent.click(within(column).getByRole("button", { name: "Save" }));
+    expect(mocked.updateCard).toHaveBeenCalledExactlyOnceWith(
+      "card-1",
+      "Align roadmap themes",
+      "Draft quarterly themes with impact statements and metrics.",
+      { priority: "none", dueDate: null, labels: [] }
+    );
   });
 });

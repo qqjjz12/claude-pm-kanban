@@ -11,6 +11,7 @@ type KanbanCardProps = {
   card: Card;
   onDelete: (cardId: string) => void;
   onEdit: (cardId: string, title: string, details: string, fields: CardFields) => void;
+  dragDisabled?: boolean;
 };
 
 const toDraft = (card: Card): FieldsDraft => ({
@@ -19,14 +20,14 @@ const toDraft = (card: Card): FieldsDraft => ({
   labels: card.labels.join(", "),
 });
 
-export const KanbanCard = ({ card, onDelete, onEdit }: KanbanCardProps) => {
+export const KanbanCard = ({ card, onDelete, onEdit, dragDisabled }: KanbanCardProps) => {
   const [isEditing, setIsEditing] = useState(false);
   const [title, setTitle] = useState(card.title);
   const [details, setDetails] = useState(card.details);
   const [draft, setDraft] = useState<FieldsDraft>(toDraft(card));
 
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
-    useSortable({ id: card.id });
+    useSortable({ id: card.id, disabled: dragDisabled });
 
   const style = {
     transform: CSS.Transform.toString(transform),

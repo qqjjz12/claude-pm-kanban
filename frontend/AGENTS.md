@@ -18,6 +18,7 @@ Next.js 16 (App Router, static export), React 19, TypeScript, Tailwind 4. Board 
 - `src/components/icons.tsx` - small inline SVG icon set (edit, delete, add, send, chat, logout); icon-only buttons keep an `aria-label`
 - `src/lib/kanban.ts` - types (`Card`, `Column`, `BoardData`) and `moveCard` (pure reorder logic)
 - `src/components/CardFieldsEditor.tsx` (priority, due date, labels inputs shared by new/edit card) and `CardBadges.tsx` (chips and priority border colour); card helpers (`parseLabels`, `isOverdue`, ...) live in `src/lib/kanban.ts`
+- `src/components/FilterBar.tsx` - client-side search and filters (text, priority, label, overdue) and the board summary line; `KanbanBoard` owns the filter state, hides non-matching cards, and disables dragging while a filter is active (positions would be ambiguous). Filters reset on reload and on board switch
 - `src/lib/api.ts` - typed fetch wrappers for the backend routes; `setActiveBoard` appends `?board=<id>` to board-level calls; errors are `ApiError` with `status` and `detail`
 - `src/test/fixtures.ts` - `initialData` board used by unit tests
 

@@ -1,4 +1,17 @@
-import { formatDueDate, isOverdue, moveCard, parseLabels, today, type Column } from "@/lib/kanban";
+import {
+  EMPTY_FILTERS,
+  allLabels,
+  boardStats,
+  formatDueDate,
+  isFiltering,
+  isOverdue,
+  matchesFilters,
+  moveCard,
+  parseLabels,
+  today,
+  type Card,
+  type Column,
+} from "@/lib/kanban";
 
 describe("moveCard", () => {
   const baseColumns: Column[] = [
@@ -75,5 +88,61 @@ describe("card field helpers", () => {
   it("formatDueDate does not shift the day across time zones", () => {
     expect(formatDueDate("2030-01-05")).toContain("5");
     expect(formatDueDate("2030-01-05")).toContain("2030");
+  });
+});
+
+describe("filters", () => {
+  const card = (over: Partial<Card> = {}): Card => ({
+    id: "card-1",
+    title: "Write the Spec",
+    details: "cover edge cases",
+    priority: "medium",
+    dueDate: "2000-01-01",
+    labels: ["Docs", "api"],
+    ...over,
+  });
+  const now = new Date(2030, 0, 1);
+
+  it("an empty filter matches everything and is not filtering", () => {
+    expect(isFiltering(EMPTY_FILTERS)).toBe(false);
+    expect(isFiltering({ ...EMPTY_FILTERS, query: "   " })).toBe(false);
+    expect(matchesFilters(card(), EMPTY_FILTERS, now)).toBe(true);
+  });
+
+  it("searches title, details and labels ignoring case", () => {
+    const q = (query: string) => matchesFilters(card(), { ...EMPTY_FILTERS, query }, now);
+    expect(q("spec")).toBe(true);
+    expect(q("EDGE")).toBe(true);
+    expect(q("docs")).toBe(true);
+    expect(q("nothing")).toBe(false);
+  });
+
+  it("filters by priority, label (exact) and overdue", () => {
+    expect(matchesFilters(card(), { ...EMPTY_FILTERS, priority: "medium" }, now)).toBe(true);
+    expect(matchesFilters(card(), { ...EMPTY_FILTERS, priority: "high" }, now)).toBe(false);
+    expect(matchesFilters(card(), { ...EMPTY_FILTERS, label: "api" }, now)).toBe(true);
+    expect(matchesFilters(card(), { ...EMPTY_FILTERS, label: "ap" }, now)).toBe(false);
+    expect(matchesFilters(card(), { ...EMPTY_FILTERS, overdueOnly: true }, now)).toBe(true);
+    expect(
+      matchesFilters(card({ dueDate: "2031-01-01" }), { ...EMPTY_FILTERS, overdueOnly: true }, now)
+    ).toBe(false);
+    expect(
+      matchesFilters(card({ dueDate: null }), { ...EMPTY_FILTERS, overdueOnly: true }, now)
+    ).toBe(false);
+  });
+
+  it("combines filters with and", () => {
+    const f = { ...EMPTY_FILTERS, query: "spec", priority: "high" as const };
+    expect(matchesFilters(card(), f, now)).toBe(false);
+  });
+
+  it("allLabels is sorted and unique; boardStats counts", () => {
+    const cards = {
+      a: card({ id: "a", labels: ["b", "a"], priority: "high" }),
+      b: card({ id: "b", labels: ["a"], dueDate: "2999-01-01" }),
+    };
+    expect(allLabels(cards)).toEqual(["a", "b"]);
+    expect(boardStats(cards, now)).toEqual({ total: 2, overdue: 1, high: 1 });
+    expect(boardStats({}, now)).toEqual({ total: 0, overdue: 0, high: 0 });
   });
 });

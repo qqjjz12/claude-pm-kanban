@@ -251,4 +251,70 @@ describe("KanbanBoard", () => {
       { priority: "none", dueDate: null, labels: [] }
     );
   });
+
+  describe("search and filters", () => {
+    const withFields = () => {
+      const data = structuredClone(initialData);
+      data.cards["card-1"] = {
+        ...data.cards["card-1"],
+        priority: "high",
+        labels: ["roadmap"],
+      };
+      data.cards["card-2"] = { ...data.cards["card-2"], dueDate: "2000-01-01" };
+      mocked.getBoard.mockResolvedValue(data);
+    };
+
+    it("shows a summary and no filters by default", async () => {
+      withFields();
+      await renderBoard();
+      expect(screen.getByTestId("board-summary")).toHaveTextContent(
+        "8 cards, 1 overdue, 1 high priority"
+      );
+      expect(screen.queryByRole("button", { name: /clear filters/i })).not.toBeInTheDocument();
+    });
+
+    it("hides cards that do not match the search and shows counts", async () => {
+      await renderBoard();
+      await userEvent.type(screen.getByLabelText("Search cards"), "signals");
+      expect(screen.getByText("Gather customer signals")).toBeVisible();
+      expect(screen.queryByText("Align roadmap themes")).not.toBeInTheDocument();
+      expect(screen.getByTestId("board-summary")).toHaveTextContent("Showing 1 of 8 cards");
+      expect(within(getFirstColumn()).getByText("1/2")).toBeVisible();
+      expect(screen.getAllByText("No matching cards").length).toBeGreaterThan(0);
+    });
+
+    it("filters by priority, label and overdue, and clears", async () => {
+      withFields();
+      await renderBoard();
+      await userEvent.selectOptions(screen.getByLabelText("Filter by priority"), "high");
+      expect(screen.getAllByTestId(/^card-/)).toHaveLength(1);
+
+      await userEvent.click(screen.getByRole("button", { name: /clear filters/i }));
+      expect(screen.getAllByTestId(/^card-/)).toHaveLength(8);
+
+      await userEvent.selectOptions(screen.getByLabelText("Filter by label"), "roadmap");
+      expect(screen.getByText("Align roadmap themes")).toBeVisible();
+      expect(screen.getAllByTestId(/^card-/)).toHaveLength(1);
+
+      await userEvent.click(screen.getByRole("button", { name: /clear filters/i }));
+      await userEvent.click(screen.getByLabelText("Overdue only"));
+      expect(screen.getAllByTestId(/^card-/)).toHaveLength(1);
+      expect(screen.getByText("Gather customer signals")).toBeVisible();
+    });
+
+    it("disables the label filter when no card has labels", async () => {
+      await renderBoard();
+      expect(screen.getByLabelText("Filter by label")).toBeDisabled();
+    });
+
+    it("keeps editing working on a filtered card", async () => {
+      await renderBoard();
+      await userEvent.type(screen.getByLabelText("Search cards"), "signals");
+      await userEvent.click(
+        screen.getByRole("button", { name: /edit gather customer signals/i })
+      );
+      await userEvent.click(screen.getByRole("button", { name: "Save" }));
+      expect(mocked.updateCard).toHaveBeenCalledOnce();
+    });
+  });
 });

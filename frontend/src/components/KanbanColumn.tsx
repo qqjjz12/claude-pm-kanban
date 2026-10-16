@@ -10,6 +10,8 @@ import { TrashIcon } from "@/components/icons";
 type KanbanColumnProps = {
   column: Column;
   cards: Card[];
+  totalCount: number;
+  filtering: boolean;
   onRename: (columnId: string, title: string) => void;
   onRenameCommit: (columnId: string, title: string) => void;
   onDelete: (columnId: string) => void;
@@ -21,6 +23,8 @@ type KanbanColumnProps = {
 export const KanbanColumn = ({
   column,
   cards,
+  totalCount,
+  filtering,
   onRename,
   onRenameCommit,
   onDelete,
@@ -58,7 +62,7 @@ export const KanbanColumn = ({
           aria-label="Column title"
         />
         <span className="shrink-0 rounded-full bg-[var(--surface)] px-2.5 py-0.5 text-xs font-semibold text-[var(--gray-text)]">
-          {cards.length}
+          {filtering ? `${cards.length}/${totalCount}` : cards.length}
         </span>
         <button
           type="button"
@@ -77,19 +81,20 @@ export const KanbanColumn = ({
         </button>
       </div>
       <div className="mt-4 flex flex-1 flex-col gap-2.5">
-        <SortableContext items={column.cardIds} strategy={verticalListSortingStrategy}>
+        <SortableContext items={cards.map((card) => card.id)} strategy={verticalListSortingStrategy}>
           {cards.map((card) => (
             <KanbanCard
               key={card.id}
               card={card}
               onDelete={(cardId) => onDeleteCard(column.id, cardId)}
               onEdit={onEditCard}
+              dragDisabled={filtering}
             />
           ))}
         </SortableContext>
         {cards.length === 0 && (
           <div className="flex flex-1 items-center justify-center rounded-2xl border border-dashed border-[var(--stroke)] px-3 py-6 text-center text-xs font-semibold uppercase tracking-[0.2em] text-[var(--gray-text)]">
-            Drop a card here
+            {filtering ? "No matching cards" : "Drop a card here"}
           </div>
         )}
       </div>

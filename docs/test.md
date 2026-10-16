@@ -8,7 +8,7 @@
 | Frontend unit (Vitest) | `cd frontend && npm run test:unit` | jsdom; the API module or `fetch` is mocked |
 | End to end (Playwright) | `cd frontend && npm run test:e2e` | Needs the container running (`scripts/start`), at http://localhost:8000 |
 
-Counts: backend 131 passing plus 2 live tests skipped without the key, frontend unit 80, end to end 24.
+Counts: backend 131 passing plus 2 live tests skipped without the key, frontend unit 90, end to end 25.
 
 ## Backend (pytest) - `backend/tests/`
 
@@ -222,7 +222,7 @@ Live (skipped when `OPENROUTER_API_KEY` is not set):
 
 ### lib/kanban.test.ts (card field helpers)
 
-`parseLabels`, `today`, `isOverdue`, `formatDueDate`. KanbanBoard tests also cover adding a card with fields, badges and editing/clearing fields.
+`parseLabels`, `today`, `isOverdue`, `formatDueDate`, `matchesFilters` (search over title/details/labels, priority, exact label, overdue, combined), `allLabels`, `boardStats`. KanbanBoard tests cover the filter bar: summary, hiding, counts, clearing, editing a filtered card. KanbanBoard tests also cover adding a card with fields, badges and editing/clearing fields.
 
 ### components/Workspace.test.tsx (`@/lib/api` mocked, board mocked)
 
@@ -279,6 +279,10 @@ Run against the container with the real backend. Tests that change data create u
 ### card-fields.spec.ts
 
 Priority, due date (overdue badge) and labels persist across reload; edit and clear them.
+
+### filters.spec.ts
+
+Search, priority and label filters narrow the board, summary text updates, clear filters, reload resets.
 
 ### accounts.spec.ts
 

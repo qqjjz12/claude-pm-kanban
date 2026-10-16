@@ -16,7 +16,18 @@ import { KanbanColumn } from "@/components/KanbanColumn";
 import { KanbanCardPreview } from "@/components/KanbanCardPreview";
 import { NewColumnForm } from "@/components/NewColumnForm";
 import * as api from "@/lib/api";
-import { moveCard, type BoardData, type CardFields } from "@/lib/kanban";
+import { FilterBar } from "@/components/FilterBar";
+import {
+  EMPTY_FILTERS,
+  allLabels,
+  boardStats,
+  isFiltering,
+  matchesFilters,
+  moveCard,
+  type BoardData,
+  type CardFields,
+  type Filters,
+} from "@/lib/kanban";
 
 type KanbanBoardProps = {
   boardId: number;
@@ -28,6 +39,7 @@ export const KanbanBoard = ({ boardId, header, notice }: KanbanBoardProps) => {
   const [board, setBoard] = useState<BoardData | null>(null);
   const [activeCardId, setActiveCardId] = useState<string | null>(null);
   const [error, setError] = useState("");
+  const [filters, setFilters] = useState<Filters>(EMPTY_FILTERS);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -199,6 +211,13 @@ export const KanbanBoard = ({ boardId, header, notice }: KanbanBoardProps) => {
   };
 
   const activeCard = activeCardId ? board.cards[activeCardId] : null;
+  const filtering = isFiltering(filters);
+  const visibleCards = (cardIds: string[]) =>
+    cardIds.map((id) => board.cards[id]).filter((card) => matchesFilters(card, filters));
+  const shown = board.columns.reduce(
+    (sum, column) => sum + visibleCards(column.cardIds).length,
+    0
+  );
 
   return (
     <div className="flex min-h-screen flex-col lg:flex-row">
@@ -209,6 +228,14 @@ export const KanbanBoard = ({ boardId, header, notice }: KanbanBoardProps) => {
       <main className="relative flex min-h-screen flex-col gap-6 px-4 pb-10 pt-6 lg:px-6">
         {header}
         {notice}
+
+        <FilterBar
+          filters={filters}
+          onChange={setFilters}
+          labels={allLabels(board.cards)}
+          shown={shown}
+          stats={boardStats(board.cards)}
+        />
 
         {error && (
           <p
@@ -230,7 +257,9 @@ export const KanbanBoard = ({ boardId, header, notice }: KanbanBoardProps) => {
               <KanbanColumn
                 key={column.id}
                 column={column}
-                cards={column.cardIds.map((cardId) => board.cards[cardId])}
+                cards={visibleCards(column.cardIds)}
+                totalCount={column.cardIds.length}
+                filtering={filtering}
                 onRename={handleRenameColumn}
                 onRenameCommit={handleRenameCommit}
                 onDelete={handleDeleteColumn}

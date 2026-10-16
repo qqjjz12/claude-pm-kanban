@@ -148,3 +148,56 @@ export const moveCard = (
     return column;
   });
 };
+
+export type Filters = {
+  query: string;
+  priority: Priority | "any";
+  label: string;
+  overdueOnly: boolean;
+};
+
+export const EMPTY_FILTERS: Filters = {
+  query: "",
+  priority: "any",
+  label: "",
+  overdueOnly: false,
+};
+
+export const isFiltering = (filters: Filters) =>
+  filters.query.trim() !== "" ||
+  filters.priority !== "any" ||
+  filters.label !== "" ||
+  filters.overdueOnly;
+
+export const matchesFilters = (card: Card, filters: Filters, now = new Date()) => {
+  const query = filters.query.trim().toLowerCase();
+  if (
+    query &&
+    ![card.title, card.details, ...card.labels].some((text) =>
+      text.toLowerCase().includes(query)
+    )
+  ) {
+    return false;
+  }
+  if (filters.priority !== "any" && card.priority !== filters.priority) {
+    return false;
+  }
+  if (filters.label && !card.labels.includes(filters.label)) {
+    return false;
+  }
+  return !filters.overdueOnly || isOverdue(card.dueDate, now);
+};
+
+export const allLabels = (cards: Record<string, Card>) =>
+  [...new Set(Object.values(cards).flatMap((card) => card.labels))].sort((a, b) =>
+    a.localeCompare(b)
+  );
+
+export const boardStats = (cards: Record<string, Card>, now = new Date()) => {
+  const all = Object.values(cards);
+  return {
+    total: all.length,
+    overdue: all.filter((card) => isOverdue(card.dueDate, now)).length,
+    high: all.filter((card) => card.priority === "high").length,
+  };
+};

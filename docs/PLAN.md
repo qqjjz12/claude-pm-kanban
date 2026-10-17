@@ -176,4 +176,6 @@ Success: full chat experience works end to end; AI-driven board changes appear i
 - [x] Iteration 7: coverage review (backend source 100%, frontend about 95%; the rest is drag handling covered by e2e), session expiry, login/password throttling, malformed cookie handling
 - [x] Iteration 8: documentation brought in line with the code (README, .env.example, DATABASE.md, schema.json, AGENTS.md, CLAUDE.md)
 - [x] Iteration 9: column reordering (arrow buttons rather than dragging), board export as JSON, and a fix for lost updates under concurrent requests
-- [ ] Iteration 10: final verification
+- [x] Iteration 10: final verification from a no-cache image build on a fresh database and on the migrated one: all suites pass, live AI tests pass, and a live chat request using the new card fields and column operations works
+
+Not done (possible future work): sharing boards between users, the AI reading or changing checklists and comments, importing an exported board, dragging columns, persisting chat history, server-side search across boards, login throttling that survives a restart.

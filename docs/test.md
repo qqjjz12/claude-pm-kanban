@@ -10,6 +10,10 @@
 
 Counts: backend 196 passing plus 2 live tests skipped without the key, frontend unit 148, end to end 34.
 
+Coverage (last measured): backend source files 100% (`uv run pytest --cov=.`); frontend about 95% (`npx vitest run --coverage`), the remainder being the drag-and-drop handlers, which the end to end tests exercise.
+
+The end to end tests register a new account per test and leave it behind in the container's database. To keep your own data clean, run them against a throwaway volume: `docker run -d --name pm-app -p 127.0.0.1:8000:8000 --env-file .env -v pm-test:/data pm-app`, then `docker volume rm pm-test` afterwards.
+
 ## Backend (pytest) - `backend/tests/`
 
 ### test_main.py

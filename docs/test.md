@@ -8,7 +8,7 @@
 | Frontend unit (Vitest) | `cd frontend && npm run test:unit` | jsdom; the API module or `fetch` is mocked |
 | End to end (Playwright) | `cd frontend && npm run test:e2e` | Needs the container running (`scripts/start`), at http://localhost:8000 |
 
-Counts: backend 196 passing plus 2 live tests skipped without the key, frontend unit 148, end to end 34.
+Counts: backend 196 passing plus 2 live tests skipped without the key, frontend unit 150, end to end 35.
 
 Coverage (last measured): backend source files 100% (`uv run pytest --cov=.`); frontend about 95% (`npx vitest run --coverage`), the remainder being the drag-and-drop handlers, which the end to end tests exercise.
 
@@ -274,7 +274,7 @@ Live (skipped when `OPENROUTER_API_KEY` is not set):
 
 ### lib/kanban.test.ts (card field helpers)
 
-`parseLabels`, `today`, `isOverdue`, `formatDueDate`, `matchesFilters` (search over title/details/labels, priority, exact label, overdue, combined), `allLabels`, `boardStats`. KanbanBoard tests cover the filter bar: summary, hiding, counts, clearing, editing a filtered card. KanbanBoard tests also cover adding a card with fields, badges and editing/clearing fields.
+`parseLabels`, `today`, `isOverdue`, `formatDueDate`, `matchesFilters` (search over title/details/labels, priority, exact label, overdue, combined), `allLabels`, `boardStats`. KanbanBoard tests cover the filter bar: summary, hiding, counts, clearing, editing a filtered card, and the label filter (disabled with an explanation when no card has labels, a selected label stays listed after its last card loses it). KanbanBoard tests also cover adding a card with fields, badges and editing/clearing fields.
 
 ### lib/download.test.ts
 
@@ -368,7 +368,7 @@ Checklist and comments persist, show as card badges, and can be removed; deletin
 
 ### filters.spec.ts
 
-Search, priority and label filters narrow the board, summary text updates, clear filters, reload resets.
+Search, priority and label filters narrow the board, summary text updates, clear filters, reload resets; the label filter explains why it is disabled until a card has a label.
 
 ### accounts.spec.ts
 

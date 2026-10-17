@@ -18,6 +18,9 @@ const field =
 
 export const FilterBar = ({ filters, onChange, labels, shown, stats }: FilterBarProps) => {
   const active = isFiltering(filters);
+  // Keep a selected label listed even if its last card lost it, so the select shows what is applied.
+  const labelOptions =
+    filters.label && !labels.includes(filters.label) ? [...labels, filters.label] : labels;
   return (
     <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-[var(--stroke)] bg-white/80 px-4 py-3">
       <input
@@ -47,11 +50,16 @@ export const FilterBar = ({ filters, onChange, labels, shown, stats }: FilterBar
         value={filters.label}
         onChange={(event) => onChange({ ...filters, label: event.target.value })}
         aria-label="Filter by label"
-        className={field}
-        disabled={labels.length === 0}
+        className={`${field} disabled:cursor-not-allowed disabled:opacity-50`}
+        disabled={labelOptions.length === 0}
+        title={
+          labelOptions.length === 0
+            ? "No cards have labels yet. Add labels when editing a card to filter by them."
+            : undefined
+        }
       >
-        <option value="">Any label</option>
-        {labels.map((label) => (
+        <option value="">{labelOptions.length === 0 ? "No labels yet" : "Any label"}</option>
+        {labelOptions.map((label) => (
           <option key={label} value={label}>
             {label}
           </option>

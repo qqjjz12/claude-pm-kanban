@@ -304,8 +304,39 @@ describe("KanbanBoard", () => {
       expect(screen.getByText("Gather customer signals")).toBeVisible();
     });
 
-    it("disables the label filter when no card has labels", async () => {
+    it("explains why the label filter is disabled when no card has labels", async () => {
       await renderBoard();
+      const select = screen.getByLabelText("Filter by label");
+      expect(select).toBeDisabled();
+      expect(select).toHaveValue("");
+      expect(within(select).getByRole("option", { name: "No labels yet" })).toBeInTheDocument();
+      expect(select).toHaveAttribute("title", expect.stringMatching(/no cards have labels/i));
+    });
+
+    it("enables the label filter once a card has a label and lists each label once", async () => {
+      withFields();
+      await renderBoard();
+      const select = screen.getByLabelText("Filter by label");
+      expect(select).toBeEnabled();
+      expect(select).not.toHaveAttribute("title");
+      expect(within(select).getAllByRole("option").map((o) => o.textContent)).toEqual([
+        "Any label",
+        "roadmap",
+      ]);
+    });
+
+    it("keeps showing the selected label after its last card loses it", async () => {
+      withFields();
+      await renderBoard();
+      await userEvent.selectOptions(screen.getByLabelText("Filter by label"), "roadmap");
+      await userEvent.click(screen.getByRole("button", { name: /edit align roadmap themes/i }));
+      await userEvent.clear(screen.getByLabelText("Labels"));
+      await userEvent.click(screen.getByRole("button", { name: "Save" }));
+
+      const select = screen.getByLabelText("Filter by label");
+      expect(select).toBeEnabled();
+      expect(select).toHaveValue("roadmap");
+      await userEvent.click(screen.getByRole("button", { name: /clear filters/i }));
       expect(screen.getByLabelText("Filter by label")).toBeDisabled();
     });
 

@@ -34,3 +34,20 @@ test("search and filters narrow the board and clear again", async ({ page }) => 
   await reloadSettled(page);
   await expect(summary).toContainText("8 cards");
 });
+
+test("the label filter says why it is disabled until a card has a label", async ({ page }) => {
+  await register(page, uniqueName("flt"));
+  const select = page.getByLabel("Filter by label");
+  await expect(select).toBeDisabled();
+  await expect(select.locator("option")).toHaveText(["No labels yet"]);
+
+  const backlog = page.getByTestId(/column-/).first();
+  await backlog.getByRole("button", { name: "Edit Align roadmap themes", exact: true }).click();
+  await backlog.getByLabel("Labels").fill("planning");
+  await backlog.getByRole("button", { name: "Save", exact: true }).click();
+
+  await expect(select).toBeEnabled();
+  await expect(select.locator("option")).toHaveText(["Any label", "planning"]);
+  await select.selectOption("planning");
+  await expect(page.getByTestId("board-summary")).toHaveText("Showing 1 of 8 cards");
+});

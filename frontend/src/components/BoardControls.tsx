@@ -71,6 +71,12 @@ export const BoardControls = ({
     }
   };
 
+  const errorMessage = error && (
+    <p role="alert" className="w-full text-sm font-medium text-red-600">
+      {error}
+    </p>
+  );
+
   if (mode === "create" || mode === "rename") {
     return (
       <form onSubmit={handleSubmit} className="flex flex-wrap items-center gap-2">
@@ -107,11 +113,7 @@ export const BoardControls = ({
         >
           <CloseIcon />
         </button>
-        {error && (
-          <p role="alert" className="w-full text-sm font-medium text-red-600">
-            {error}
-          </p>
-        )}
+        {errorMessage}
       </form>
     );
   }
@@ -136,11 +138,7 @@ export const BoardControls = ({
         >
           Cancel
         </button>
-        {error && (
-          <p role="alert" className="w-full text-sm font-medium text-red-600">
-            {error}
-          </p>
-        )}
+        {errorMessage}
       </div>
     );
   }
@@ -196,11 +194,7 @@ export const BoardControls = ({
       >
         <DownloadIcon />
       </button>
-      {error && (
-        <p role="alert" className="w-full text-sm font-medium text-red-600">
-          {error}
-        </p>
-      )}
+      {errorMessage}
     </div>
   );
 };

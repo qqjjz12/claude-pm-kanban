@@ -18,7 +18,9 @@ export type Card = CardFields & {
   checklist: ChecklistSummary;
 };
 
-export const NO_FIELDS: CardFields = { priority: "none", dueDate: null, labels: [] };
+// "high" -> "High"; "none" reads as "No priority".
+export const priorityLabel = (priority: Priority) =>
+  priority === "none" ? "No priority" : priority[0].toUpperCase() + priority.slice(1);
 
 // "bug, UI,, bug" -> ["bug", "UI"]: trimmed, no blanks, no repeats ignoring case, at most 10.
 export const parseLabels = (text: string): string[] => {
@@ -52,6 +54,12 @@ export const formatDueDate = (dueDate: string) => {
   });
 };
 
+export const formatTimestamp = (value: string) => {
+  // SQLite CURRENT_TIMESTAMP is UTC without a zone marker.
+  const date = new Date(value.replace(" ", "T") + "Z");
+  return Number.isNaN(date.getTime()) ? value : date.toLocaleString();
+};
+
 export type Column = {
   id: string;
   title: string;
@@ -63,93 +71,56 @@ export type BoardData = {
   cards: Record<string, Card>;
 };
 
-const isColumnId = (columns: Column[], id: string) =>
-  columns.some((column) => column.id === id);
+// The column with this id, or the column that holds the card with this id.
+const findColumn = (columns: Column[], id: string) =>
+  columns.find((column) => column.id === id) ??
+  columns.find((column) => column.cardIds.includes(id));
 
-const findColumnId = (columns: Column[], id: string) => {
-  if (isColumnId(columns, id)) {
-    return id;
-  }
-  return columns.find((column) => column.cardIds.includes(id))?.id;
-};
+const withCardIds = (columns: Column[], changes: Record<string, string[]>) =>
+  columns.map((column) =>
+    column.id in changes ? { ...column, cardIds: changes[column.id] } : column
+  );
 
+// Drop the active card on a card (takes its place) or on a column (goes to the end).
 export const moveCard = (
   columns: Column[],
   activeId: string,
   overId: string
 ): Column[] => {
-  const activeColumnId = findColumnId(columns, activeId);
-  const overColumnId = findColumnId(columns, overId);
-
-  if (!activeColumnId || !overColumnId) {
-    return columns;
-  }
-
-  const activeColumn = columns.find((column) => column.id === activeColumnId);
-  const overColumn = columns.find((column) => column.id === overColumnId);
-
+  const activeColumn = findColumn(columns, activeId);
+  const overColumn = findColumn(columns, overId);
   if (!activeColumn || !overColumn) {
     return columns;
   }
 
-  const isOverColumn = isColumnId(columns, overId);
+  const isOverColumn = overColumn.id === overId;
+  const remaining = activeColumn.cardIds.filter((cardId) => cardId !== activeId);
 
-  if (activeColumnId === overColumnId) {
+  if (activeColumn.id === overColumn.id) {
     if (isOverColumn) {
-      const nextCardIds = activeColumn.cardIds.filter(
-        (cardId) => cardId !== activeId
-      );
-      nextCardIds.push(activeId);
-      return columns.map((column) =>
-        column.id === activeColumnId
-          ? { ...column, cardIds: nextCardIds }
-          : column
-      );
+      return withCardIds(columns, { [activeColumn.id]: [...remaining, activeId] });
     }
-
     const oldIndex = activeColumn.cardIds.indexOf(activeId);
     const newIndex = activeColumn.cardIds.indexOf(overId);
-
-    if (oldIndex === -1 || newIndex === -1 || oldIndex === newIndex) {
+    if (oldIndex === -1 || oldIndex === newIndex) {
       return columns;
     }
-
-    const nextCardIds = [...activeColumn.cardIds];
-    nextCardIds.splice(oldIndex, 1);
-    nextCardIds.splice(newIndex, 0, activeId);
-
-    return columns.map((column) =>
-      column.id === activeColumnId
-        ? { ...column, cardIds: nextCardIds }
-        : column
-    );
+    remaining.splice(newIndex, 0, activeId);
+    return withCardIds(columns, { [activeColumn.id]: remaining });
   }
 
-  const activeIndex = activeColumn.cardIds.indexOf(activeId);
-  if (activeIndex === -1) {
+  if (!activeColumn.cardIds.includes(activeId)) {
     return columns;
   }
-
-  const nextActiveCardIds = [...activeColumn.cardIds];
-  nextActiveCardIds.splice(activeIndex, 1);
-
-  const nextOverCardIds = [...overColumn.cardIds];
-  if (isOverColumn) {
-    nextOverCardIds.push(activeId);
-  } else {
-    const overIndex = overColumn.cardIds.indexOf(overId);
-    const insertIndex = overIndex === -1 ? nextOverCardIds.length : overIndex;
-    nextOverCardIds.splice(insertIndex, 0, activeId);
-  }
-
-  return columns.map((column) => {
-    if (column.id === activeColumnId) {
-      return { ...column, cardIds: nextActiveCardIds };
-    }
-    if (column.id === overColumnId) {
-      return { ...column, cardIds: nextOverCardIds };
-    }
-    return column;
+  const overCardIds = [...overColumn.cardIds];
+  overCardIds.splice(
+    isOverColumn ? overCardIds.length : overCardIds.indexOf(overId),
+    0,
+    activeId
+  );
+  return withCardIds(columns, {
+    [activeColumn.id]: remaining,
+    [overColumn.id]: overCardIds,
   });
 };
 

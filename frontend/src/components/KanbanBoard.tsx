@@ -30,6 +30,7 @@ import {
   moveColumnBy,
   type BoardData,
   type CardFields,
+  type ChecklistSummary,
   type Filters,
 } from "@/lib/kanban";
 
@@ -158,7 +159,7 @@ export const KanbanBoard = ({ boardId, header, notice }: KanbanBoardProps) => {
   const handleSummary = (
     cardId: string,
     commentCount: number,
-    checklist: { done: number; total: number }
+    checklist: ChecklistSummary
   ) => {
     setBoard((prev) =>
       prev && prev.cards[cardId]
@@ -261,102 +262,102 @@ export const KanbanBoard = ({ boardId, header, notice }: KanbanBoardProps) => {
 
   return (
     <div className="flex min-h-screen flex-col lg:flex-row">
-    <div className="relative min-w-0 flex-1 overflow-hidden">
-      <div className="pointer-events-none absolute left-0 top-0 h-[420px] w-[420px] -translate-x-1/3 -translate-y-1/3 rounded-full bg-[radial-gradient(circle,_rgba(32,157,215,0.25)_0%,_rgba(32,157,215,0.05)_55%,_transparent_70%)]" />
-      <div className="pointer-events-none absolute bottom-0 right-0 h-[520px] w-[520px] translate-x-1/4 translate-y-1/4 rounded-full bg-[radial-gradient(circle,_rgba(117,57,145,0.18)_0%,_rgba(117,57,145,0.05)_55%,_transparent_75%)]" />
+      <div className="relative min-w-0 flex-1 overflow-hidden">
+        <div className="pointer-events-none absolute left-0 top-0 h-[420px] w-[420px] -translate-x-1/3 -translate-y-1/3 rounded-full bg-[radial-gradient(circle,_rgba(32,157,215,0.25)_0%,_rgba(32,157,215,0.05)_55%,_transparent_70%)]" />
+        <div className="pointer-events-none absolute bottom-0 right-0 h-[520px] w-[520px] translate-x-1/4 translate-y-1/4 rounded-full bg-[radial-gradient(circle,_rgba(117,57,145,0.18)_0%,_rgba(117,57,145,0.05)_55%,_transparent_75%)]" />
 
-      <main className="relative flex min-h-screen flex-col gap-6 px-4 pb-10 pt-6 lg:px-6">
-        {header}
-        {notice}
+        <main className="relative flex min-h-screen flex-col gap-6 px-4 pb-10 pt-6 lg:px-6">
+          {header}
+          {notice}
 
-        <nav aria-label="Views" className="flex gap-2">
-          {VIEWS.map(({ id, label }) => (
-            <button
-              key={id}
-              type="button"
-              onClick={() => setView(id)}
-              aria-pressed={view === id}
-              className={`rounded-full px-4 py-2 text-xs font-semibold uppercase tracking-wide transition ${
-                view === id
-                  ? "bg-[var(--navy-dark)] text-white"
-                  : "border border-[var(--stroke)] bg-white/80 text-[var(--navy-dark)] hover:border-[var(--primary-blue)]"
-              }`}
-            >
-              {label}
-            </button>
-          ))}
-        </nav>
-
-        {view === "dashboard" && <Dashboard board={board} />}
-        {view === "activity" && <ActivityPanel />}
-
-        {view === "board" && (
-          <FilterBar
-            filters={filters}
-            onChange={setFilters}
-            labels={allLabels(board.cards)}
-            shown={shown}
-            stats={boardStats(board.cards)}
-          />
-        )}
-
-        {error && (
-          <p
-            role="alert"
-            className="rounded-2xl border border-[var(--stroke)] bg-white px-5 py-3 text-sm font-medium text-red-600"
-          >
-            {error}
-          </p>
-        )}
-
-        {view === "board" && (
-        <DndContext
-          sensors={sensors}
-          collisionDetection={closestCorners}
-          onDragStart={handleDragStart}
-          onDragEnd={handleDragEnd}
-        >
-          <section className="grid auto-cols-[minmax(230px,1fr)] grid-flow-col gap-4 overflow-x-auto px-1 pb-8 -mb-6 -mx-1">
-            {board.columns.map((column, index) => (
-              <KanbanColumn
-                key={column.id}
-                column={column}
-                cards={visibleCards(column.cardIds)}
-                totalCount={column.cardIds.length}
-                filtering={filtering}
-                onRename={handleRenameColumn}
-                onRenameCommit={handleRenameCommit}
-                onDelete={handleDeleteColumn}
-                onMove={handleMoveColumn}
-                canMoveLeft={index > 0}
-                canMoveRight={index < board.columns.length - 1}
-                onAddCard={handleAddCard}
-                onDeleteCard={handleDeleteCard}
-                onEditCard={handleEditCard}
-                onOpenCard={setDetailCardId}
-              />
+          <nav aria-label="Views" className="flex gap-2">
+            {VIEWS.map(({ id, label }) => (
+              <button
+                key={id}
+                type="button"
+                onClick={() => setView(id)}
+                aria-pressed={view === id}
+                className={`rounded-full px-4 py-2 text-xs font-semibold uppercase tracking-wide transition ${
+                  view === id
+                    ? "bg-[var(--navy-dark)] text-white"
+                    : "border border-[var(--stroke)] bg-white/80 text-[var(--navy-dark)] hover:border-[var(--primary-blue)]"
+                }`}
+              >
+                {label}
+              </button>
             ))}
-            <NewColumnForm onAdd={handleAddColumn} />
-          </section>
-          <DragOverlay>
-            {activeCard ? (
-              <div className="w-[280px]">
-                <KanbanCardPreview card={activeCard} />
-              </div>
-            ) : null}
-          </DragOverlay>
-        </DndContext>
-        )}
-      </main>
-    </div>
-    {detailCardId && board.cards[detailCardId] && (
-      <CardDetailModal
-        card={board.cards[detailCardId]}
-        onClose={() => setDetailCardId(null)}
-        onSummary={handleSummary}
-      />
-    )}
-    <ChatSidebar onBoardUpdate={setBoard} />
+          </nav>
+
+          {view === "dashboard" && <Dashboard board={board} />}
+          {view === "activity" && <ActivityPanel />}
+
+          {view === "board" && (
+            <FilterBar
+              filters={filters}
+              onChange={setFilters}
+              labels={allLabels(board.cards)}
+              shown={shown}
+              stats={boardStats(board.cards)}
+            />
+          )}
+
+          {error && (
+            <p
+              role="alert"
+              className="rounded-2xl border border-[var(--stroke)] bg-white px-5 py-3 text-sm font-medium text-red-600"
+            >
+              {error}
+            </p>
+          )}
+
+          {view === "board" && (
+            <DndContext
+              sensors={sensors}
+              collisionDetection={closestCorners}
+              onDragStart={handleDragStart}
+              onDragEnd={handleDragEnd}
+            >
+              <section className="grid auto-cols-[minmax(230px,1fr)] grid-flow-col gap-4 overflow-x-auto px-1 pb-8 -mb-6 -mx-1">
+                {board.columns.map((column, index) => (
+                  <KanbanColumn
+                    key={column.id}
+                    column={column}
+                    cards={visibleCards(column.cardIds)}
+                    totalCount={column.cardIds.length}
+                    filtering={filtering}
+                    onRename={handleRenameColumn}
+                    onRenameCommit={handleRenameCommit}
+                    onDelete={handleDeleteColumn}
+                    onMove={handleMoveColumn}
+                    canMoveLeft={index > 0}
+                    canMoveRight={index < board.columns.length - 1}
+                    onAddCard={handleAddCard}
+                    onDeleteCard={handleDeleteCard}
+                    onEditCard={handleEditCard}
+                    onOpenCard={setDetailCardId}
+                  />
+                ))}
+                <NewColumnForm onAdd={handleAddColumn} />
+              </section>
+              <DragOverlay>
+                {activeCard ? (
+                  <div className="w-[280px]">
+                    <KanbanCardPreview card={activeCard} />
+                  </div>
+                ) : null}
+              </DragOverlay>
+            </DndContext>
+          )}
+        </main>
+      </div>
+      {detailCardId && board.cards[detailCardId] && (
+        <CardDetailModal
+          card={board.cards[detailCardId]}
+          onClose={() => setDetailCardId(null)}
+          onSummary={handleSummary}
+        />
+      )}
+      <ChatSidebar onBoardUpdate={setBoard} />
     </div>
   );
 };

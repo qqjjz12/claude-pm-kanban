@@ -2,6 +2,7 @@ import {
   EMPTY_FILTERS,
   PRIORITIES,
   isFiltering,
+  priorityLabel,
   type Filters,
 } from "@/lib/kanban";
 
@@ -42,7 +43,7 @@ export const FilterBar = ({ filters, onChange, labels, shown, stats }: FilterBar
         <option value="any">Any priority</option>
         {PRIORITIES.map((priority) => (
           <option key={priority} value={priority}>
-            {priority === "none" ? "No priority" : priority[0].toUpperCase() + priority.slice(1)}
+            {priorityLabel(priority)}
           </option>
         ))}
       </select>

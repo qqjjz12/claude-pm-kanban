@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { CloseIcon, TrashIcon } from "@/components/icons";
 import * as api from "@/lib/api";
-import type { Card, ChecklistSummary } from "@/lib/kanban";
+import { formatTimestamp, type Card, type ChecklistSummary } from "@/lib/kanban";
 
 type CardDetailModalProps = {
   card: Card;
@@ -15,12 +15,6 @@ const primary =
   "rounded-full bg-[var(--secondary-purple)] px-4 py-2 text-xs font-semibold uppercase tracking-wide text-white transition hover:brightness-110";
 const sectionTitle =
   "text-xs font-semibold uppercase tracking-[0.2em] text-[var(--gray-text)]";
-
-const formatTimestamp = (value: string) => {
-  // SQLite CURRENT_TIMESTAMP is UTC without a zone marker.
-  const date = new Date(value.replace(" ", "T") + "Z");
-  return Number.isNaN(date.getTime()) ? value : date.toLocaleString();
-};
 
 export const CardDetailModal = ({ card, onClose, onSummary }: CardDetailModalProps) => {
   const [detail, setDetail] = useState<api.CardDetail | null>(null);

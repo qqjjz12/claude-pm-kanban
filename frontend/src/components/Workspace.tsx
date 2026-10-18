@@ -37,12 +37,7 @@ export const Workspace = ({ username, onLogout }: WorkspaceProps) => {
       .catch(() => setError("Could not load your boards."));
   }, [applyBoards]);
 
-  useEffect(() => {
-    api
-      .listBoards()
-      .then(applyBoards)
-      .catch(() => setError("Could not load your boards."));
-  }, [applyBoards]);
+  useEffect(loadBoards, [loadBoards]);
 
   const handleCreate = async (name: string, template: api.BoardTemplate) => {
     const board = await api.createBoard(name, template);

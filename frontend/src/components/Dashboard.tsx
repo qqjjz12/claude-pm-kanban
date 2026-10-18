@@ -1,4 +1,11 @@
-import { PRIORITIES, dashboardStats, formatDueDate, type BoardData } from "@/lib/kanban";
+import {
+  PRIORITIES,
+  dashboardStats,
+  formatDueDate,
+  priorityLabel,
+  type BoardData,
+  type Priority,
+} from "@/lib/kanban";
 
 type DashboardProps = {
   board: BoardData;
@@ -23,7 +30,7 @@ const Bar = ({ label, count, max, color }: { label: string; count: number; max: 
   </li>
 );
 
-const PRIORITY_COLOR: Record<string, string> = {
+const PRIORITY_COLOR: Record<Priority, string> = {
   none: "var(--gray-text)",
   low: "var(--primary-blue)",
   medium: "var(--accent-yellow)",
@@ -83,7 +90,7 @@ export const Dashboard = ({ board }: DashboardProps) => {
             {PRIORITIES.map((priority) => (
               <Bar
                 key={priority}
-                label={priority === "none" ? "No priority" : priority[0].toUpperCase() + priority.slice(1)}
+                label={priorityLabel(priority)}
                 count={stats.byPriority[priority]}
                 max={maxPriority}
                 color={PRIORITY_COLOR[priority]}

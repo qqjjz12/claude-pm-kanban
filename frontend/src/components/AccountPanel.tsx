@@ -16,6 +16,16 @@ const primary =
 
 const statusOf = (error: unknown) => (error instanceof api.ApiError ? error.status : 0);
 
+const passwordChangeError = (status: number) => {
+  if (status === 401) {
+    return "The current password is wrong.";
+  }
+  if (status === 422) {
+    return "The new password must be at least 8 characters.";
+  }
+  return "Could not change the password.";
+};
+
 export const AccountPanel = ({ username, onClose, onDeleted }: AccountPanelProps) => {
   const [current, setCurrent] = useState("");
   const [next, setNext] = useState("");
@@ -34,16 +44,7 @@ export const AccountPanel = ({ username, onClose, onDeleted }: AccountPanelProps
       setNext("");
       setPasswordMessage({ ok: true, text: "Password changed." });
     } catch (error) {
-      const status = statusOf(error);
-      setPasswordMessage({
-        ok: false,
-        text:
-          status === 401
-            ? "The current password is wrong."
-            : status === 422
-              ? "The new password must be at least 8 characters."
-              : "Could not change the password.",
-      });
+      setPasswordMessage({ ok: false, text: passwordChangeError(statusOf(error)) });
     }
   };
 

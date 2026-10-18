@@ -1,7 +1,11 @@
 import { useState, type FormEvent } from "react";
-import { CardFieldsEditor, type FieldsDraft } from "@/components/CardFieldsEditor";
+import {
+  CardFieldsEditor,
+  draftToFields,
+  type FieldsDraft,
+} from "@/components/CardFieldsEditor";
 import { PlusIcon } from "@/components/icons";
-import { parseLabels, type CardFields } from "@/lib/kanban";
+import type { CardFields } from "@/lib/kanban";
 
 const initialFormState = { title: "", details: "" };
 const initialFields: FieldsDraft = { priority: "none", dueDate: "", labels: "" };
@@ -15,19 +19,19 @@ export const NewCardForm = ({ onAdd }: NewCardFormProps) => {
   const [formState, setFormState] = useState(initialFormState);
   const [fields, setFields] = useState<FieldsDraft>(initialFields);
 
+  const close = () => {
+    setIsOpen(false);
+    setFormState(initialFormState);
+    setFields(initialFields);
+  };
+
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!formState.title.trim()) {
       return;
     }
-    onAdd(formState.title.trim(), formState.details.trim(), {
-      priority: fields.priority,
-      dueDate: fields.dueDate || null,
-      labels: parseLabels(fields.labels),
-    });
-    setFormState(initialFormState);
-    setFields(initialFields);
-    setIsOpen(false);
+    onAdd(formState.title.trim(), formState.details.trim(), draftToFields(fields));
+    close();
   };
 
   return (
@@ -62,11 +66,7 @@ export const NewCardForm = ({ onAdd }: NewCardFormProps) => {
             </button>
             <button
               type="button"
-              onClick={() => {
-                setIsOpen(false);
-                setFormState(initialFormState);
-                setFields(initialFields);
-              }}
+              onClick={close}
               className="rounded-full border border-[var(--stroke)] px-3 py-2 text-xs font-semibold uppercase tracking-wide text-[var(--gray-text)] transition hover:text-[var(--navy-dark)]"
             >
               Cancel

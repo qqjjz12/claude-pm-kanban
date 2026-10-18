@@ -1,11 +1,6 @@
 import { useEffect, useState } from "react";
 import * as api from "@/lib/api";
-
-const formatTimestamp = (value: string) => {
-  // SQLite CURRENT_TIMESTAMP is UTC without a zone marker.
-  const date = new Date(value.replace(" ", "T") + "Z");
-  return Number.isNaN(date.getTime()) ? value : date.toLocaleString();
-};
+import { formatTimestamp } from "@/lib/kanban";
 
 export const ActivityPanel = () => {
   const [entries, setEntries] = useState<api.ActivityEntry[] | null>(null);

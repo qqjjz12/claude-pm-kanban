@@ -39,8 +39,21 @@ DueDate = Annotated[str, StringConstraints(pattern=r"^(\d{4}-\d{2}-\d{2})?$"), A
 Labels = Annotated[list[str], Field(max_length=10), AfterValidator(_clean_labels)]
 
 
-class ColumnUpdate(BaseModel):
+class BoardCreate(BaseModel):
+    name: Title
+    template: str = "standard"
+
+
+class BoardUpdate(BaseModel):
+    name: Title
+
+
+class ColumnTitle(BaseModel):
     title: Title
+
+
+class ColumnMove(BaseModel):
+    position: int
 
 
 class CardCreate(BaseModel):
@@ -77,23 +90,6 @@ def get_board_id(
 
 def get_user_id(username: str = Depends(current_user), conn=Depends(get_conn, scope="function")) -> int:
     return db.find_user(conn, username)["id"]
-
-
-class BoardCreate(BaseModel):
-    name: Title
-    template: str = "standard"
-
-
-class BoardUpdate(BaseModel):
-    name: Title
-
-
-class ColumnCreate(BaseModel):
-    title: Title
-
-
-class ColumnMove(BaseModel):
-    position: int
 
 
 @router.get("/boards")
@@ -150,7 +146,7 @@ def read_board(board_id: int = Depends(get_board_id), conn=Depends(get_conn, sco
 
 @router.post("/columns", status_code=201)
 def create_column(
-    body: ColumnCreate, board_id: int = Depends(get_board_id), conn=Depends(get_conn, scope="function")
+    body: ColumnTitle, board_id: int = Depends(get_board_id), conn=Depends(get_conn, scope="function")
 ):
     return db.create_column(conn, board_id, body.title)
 
@@ -177,7 +173,7 @@ def move_column(
 @router.put("/columns/{column_id}")
 def rename_column(
     column_id: str,
-    body: ColumnUpdate,
+    body: ColumnTitle,
     board_id: int = Depends(get_board_id),
     conn=Depends(get_conn, scope="function"),
 ):

@@ -32,18 +32,15 @@ export const ChatSidebar = ({ onBoardUpdate }: ChatSidebarProps) => {
     setInput("");
     setError("");
     setLoading(true);
+    const sent: api.ChatMessage[] = [...messages, { role: "user", content: text }];
     try {
       const { reply, board } = await api.chat(text, messages.slice(-MAX_HISTORY));
-      setMessages([
-        ...messages,
-        { role: "user", content: text },
-        { role: "assistant", content: reply },
-      ]);
+      setMessages([...sent, { role: "assistant", content: reply }]);
       if (board) {
         onBoardUpdate(board);
       }
     } catch {
-      setMessages([...messages, { role: "user", content: text }]);
+      setMessages(sent);
       setError("The assistant could not respond. Please try again.");
     } finally {
       setLoading(false);
@@ -72,72 +69,68 @@ export const ChatSidebar = ({ onBoardUpdate }: ChatSidebarProps) => {
           title={open ? "Collapse chat" : "Expand chat"}
           className="rounded-full border border-[var(--stroke)] p-2 text-[var(--navy-dark)] transition hover:border-[var(--primary-blue)] hover:text-[var(--primary-blue)]"
         >
-          {open ? (
-            <ChevronRightIcon />
-          ) : (
-            <ChatIcon />
-          )}
+          {open ? <ChevronRightIcon /> : <ChatIcon />}
         </button>
       </div>
 
       <div hidden={!open} className="min-h-0 flex-1">
-      <div className="flex h-full flex-col">
-        <div
-          className="flex max-h-[60vh] min-h-48 flex-1 flex-col gap-3 overflow-y-auto px-4 py-4 lg:max-h-none"
-          aria-live="polite"
-        >
-          {messages.length === 0 && !loading && (
-            <p className="text-sm leading-6 text-[var(--gray-text)]">
-              Ask me to add, edit, move or delete cards, or to rename columns.
-            </p>
-          )}
-          {messages.map((message, index) => (
-            <div
-              key={index}
-              data-testid={`chat-${message.role}`}
-              className={`max-w-[85%] whitespace-pre-wrap rounded-2xl px-4 py-2 text-sm leading-6 ${
-                message.role === "user"
-                  ? "self-end bg-[var(--secondary-purple)] text-white"
-                  : "self-start border border-[var(--stroke)] border-l-[var(--accent-yellow)] border-l-4 bg-[var(--surface)] text-[var(--navy-dark)]"
-              }`}
-            >
-              {message.content}
-            </div>
-          ))}
-          {loading && (
-            <p className="self-start text-sm text-[var(--gray-text)]">Thinking...</p>
-          )}
-          {error && (
-            <p role="alert" className="text-sm font-medium text-red-600">
-              {error}
-            </p>
-          )}
-          <div ref={endRef} />
-        </div>
-
-        <form
-          onSubmit={handleSubmit}
-          className="flex gap-2 border-t border-[var(--stroke)] p-4"
-        >
-          <input
-            value={input}
-            onChange={(event) => setInput(event.target.value)}
-            aria-label="Chat message"
-            maxLength={4000}
-            placeholder="Message the assistant"
-            className="min-w-0 flex-1 rounded-full border border-[var(--stroke)] px-4 py-2 text-sm text-[var(--navy-dark)] outline-none focus:border-[var(--primary-blue)]"
-          />
-          <button
-            type="submit"
-            disabled={loading}
-            aria-label="Send"
-            title="Send"
-            className="flex shrink-0 items-center justify-center rounded-full bg-[var(--secondary-purple)] p-2.5 text-white transition hover:opacity-90 disabled:opacity-50"
+        <div className="flex h-full flex-col">
+          <div
+            className="flex max-h-[60vh] min-h-48 flex-1 flex-col gap-3 overflow-y-auto px-4 py-4 lg:max-h-none"
+            aria-live="polite"
           >
-            <SendIcon />
-          </button>
-        </form>
-      </div>
+            {messages.length === 0 && !loading && (
+              <p className="text-sm leading-6 text-[var(--gray-text)]">
+                Ask me to add, edit, move or delete cards, or to rename columns.
+              </p>
+            )}
+            {messages.map((message, index) => (
+              <div
+                key={index}
+                data-testid={`chat-${message.role}`}
+                className={`max-w-[85%] whitespace-pre-wrap rounded-2xl px-4 py-2 text-sm leading-6 ${
+                  message.role === "user"
+                    ? "self-end bg-[var(--secondary-purple)] text-white"
+                    : "self-start border border-[var(--stroke)] border-l-[var(--accent-yellow)] border-l-4 bg-[var(--surface)] text-[var(--navy-dark)]"
+                }`}
+              >
+                {message.content}
+              </div>
+            ))}
+            {loading && (
+              <p className="self-start text-sm text-[var(--gray-text)]">Thinking...</p>
+            )}
+            {error && (
+              <p role="alert" className="text-sm font-medium text-red-600">
+                {error}
+              </p>
+            )}
+            <div ref={endRef} />
+          </div>
+
+          <form
+            onSubmit={handleSubmit}
+            className="flex gap-2 border-t border-[var(--stroke)] p-4"
+          >
+            <input
+              value={input}
+              onChange={(event) => setInput(event.target.value)}
+              aria-label="Chat message"
+              maxLength={4000}
+              placeholder="Message the assistant"
+              className="min-w-0 flex-1 rounded-full border border-[var(--stroke)] px-4 py-2 text-sm text-[var(--navy-dark)] outline-none focus:border-[var(--primary-blue)]"
+            />
+            <button
+              type="submit"
+              disabled={loading}
+              aria-label="Send"
+              title="Send"
+              className="flex shrink-0 items-center justify-center rounded-full bg-[var(--secondary-purple)] p-2.5 text-white transition hover:opacity-90 disabled:opacity-50"
+            >
+              <SendIcon />
+            </button>
+          </form>
+        </div>
       </div>
     </aside>
   );

@@ -2,9 +2,14 @@ import { useState } from "react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import clsx from "clsx";
-import { parseLabels, type Card, type CardFields } from "@/lib/kanban";
+import type { Card, CardFields } from "@/lib/kanban";
 import { CardBadges, PRIORITY_BORDER } from "@/components/CardBadges";
-import { CardFieldsEditor, type FieldsDraft } from "@/components/CardFieldsEditor";
+import {
+  CardFieldsEditor,
+  draftToFields,
+  fieldsToDraft,
+  type FieldsDraft,
+} from "@/components/CardFieldsEditor";
 import { ChatIcon, PencilIcon, TrashIcon } from "@/components/icons";
 
 type KanbanCardProps = {
@@ -15,17 +20,11 @@ type KanbanCardProps = {
   dragDisabled?: boolean;
 };
 
-const toDraft = (card: Card): FieldsDraft => ({
-  priority: card.priority,
-  dueDate: card.dueDate ?? "",
-  labels: card.labels.join(", "),
-});
-
 export const KanbanCard = ({ card, onDelete, onEdit, onOpen, dragDisabled }: KanbanCardProps) => {
   const [isEditing, setIsEditing] = useState(false);
   const [title, setTitle] = useState(card.title);
   const [details, setDetails] = useState(card.details);
-  const [draft, setDraft] = useState<FieldsDraft>(toDraft(card));
+  const [draft, setDraft] = useState<FieldsDraft>(fieldsToDraft(card));
 
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({ id: card.id, disabled: dragDisabled });
@@ -39,7 +38,7 @@ export const KanbanCard = ({ card, onDelete, onEdit, onOpen, dragDisabled }: Kan
     // The card may have changed since the last edit (for example by the AI).
     setTitle(card.title);
     setDetails(card.details);
-    setDraft(toDraft(card));
+    setDraft(fieldsToDraft(card));
     setIsEditing(true);
   };
 
@@ -47,17 +46,7 @@ export const KanbanCard = ({ card, onDelete, onEdit, onOpen, dragDisabled }: Kan
     if (!title.trim()) {
       return;
     }
-    onEdit(card.id, title.trim(), details.trim(), {
-      priority: draft.priority,
-      dueDate: draft.dueDate || null,
-      labels: parseLabels(draft.labels),
-    });
-    setIsEditing(false);
-  };
-
-  const handleCancel = () => {
-    setTitle(card.title);
-    setDetails(card.details);
+    onEdit(card.id, title.trim(), details.trim(), draftToFields(draft));
     setIsEditing(false);
   };
 
@@ -101,7 +90,7 @@ export const KanbanCard = ({ card, onDelete, onEdit, onOpen, dragDisabled }: Kan
             </button>
             <button
               type="button"
-              onClick={handleCancel}
+              onClick={() => setIsEditing(false)}
               className="rounded-full border border-[var(--stroke)] px-3 py-2 text-xs font-semibold uppercase tracking-wide text-[var(--gray-text)] transition hover:text-[var(--navy-dark)]"
             >
               Cancel

@@ -91,12 +91,9 @@ TEMPLATES = {
     "empty": [],
 }
 
-PRIORITIES = ("none", "low", "medium", "high")
-
 DEMO_USER = "user"
 DEMO_PASSWORD = "password"
 USERNAME_RE = re.compile(r"^[A-Za-z0-9_.-]{3,32}$")
-
 
 MAX_ACTIVITY = 500
 
@@ -659,11 +656,10 @@ def update_checklist_item(
 def delete_checklist_item(conn: sqlite3.Connection, board_id: int, item_id: int) -> str:
     card_pk = _require_child(conn, board_id, "checklist_items", item_id)
     conn.execute("DELETE FROM checklist_items WHERE id = ?", (item_id,))
-    for position, row in enumerate(
-        conn.execute(
-            "SELECT id FROM checklist_items WHERE card_id = ? ORDER BY position", (card_pk,)
-        ).fetchall()
-    ):
+    rows = conn.execute(
+        "SELECT id FROM checklist_items WHERE card_id = ? ORDER BY position", (card_pk,)
+    ).fetchall()
+    for position, row in enumerate(rows):
         conn.execute("UPDATE checklist_items SET position = ? WHERE id = ?", (position, row["id"]))
     return f"card-{card_pk}"
 
@@ -671,14 +667,13 @@ def delete_checklist_item(conn: sqlite3.Connection, board_id: int, item_id: int)
 def export_board(conn: sqlite3.Connection, board_id: int) -> dict:
     """The whole board as plain data: columns, cards with every field, checklists and comments."""
     name = conn.execute("SELECT name FROM boards WHERE id = ?", (board_id,)).fetchone()["name"]
+    board = fetch_board(conn, board_id)
     columns = []
-    for col in conn.execute(
-        "SELECT id, title FROM columns WHERE board_id = ? ORDER BY position", (board_id,)
-    ):
+    for col in board["columns"]:
         cards = []
-        for row in conn.execute(CARD_SELECT + " WHERE column_id = ? ORDER BY position", (col["id"],)):
-            card = _card_dict(row)
-            detail = card_detail(conn, board_id, card["id"])
+        for card_id in col["cardIds"]:
+            card = board["cards"][card_id]
+            detail = card_detail(conn, board_id, card_id)
             cards.append({
                 "title": card["title"],
                 "details": card["details"],

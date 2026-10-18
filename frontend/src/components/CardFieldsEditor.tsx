@@ -1,10 +1,29 @@
-import { PRIORITIES, type Priority } from "@/lib/kanban";
+import {
+  PRIORITIES,
+  parseLabels,
+  priorityLabel,
+  type CardFields,
+  type Priority,
+} from "@/lib/kanban";
 
+// The form's text values; draftToFields turns them into card fields.
 export type FieldsDraft = {
   priority: Priority;
   dueDate: string;
   labels: string;
 };
+
+export const fieldsToDraft = (fields: CardFields): FieldsDraft => ({
+  priority: fields.priority,
+  dueDate: fields.dueDate ?? "",
+  labels: fields.labels.join(", "),
+});
+
+export const draftToFields = (draft: FieldsDraft): CardFields => ({
+  priority: draft.priority,
+  dueDate: draft.dueDate || null,
+  labels: parseLabels(draft.labels),
+});
 
 type CardFieldsEditorProps = {
   value: FieldsDraft;
@@ -30,7 +49,7 @@ export const CardFieldsEditor = ({ value, onChange, idPrefix }: CardFieldsEditor
         >
           {PRIORITIES.map((priority) => (
             <option key={priority} value={priority}>
-              {priority === "none" ? "None" : priority[0].toUpperCase() + priority.slice(1)}
+              {priority === "none" ? "None" : priorityLabel(priority)}
             </option>
           ))}
         </select>
